@@ -1,0 +1,145 @@
+*,
+*::before,
+*::after{
+    box-sizing: border-box;
+}
+
+html{
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0.5rem;
+}
+
+h1 {
+    color: #4CAF50;
+    font-size: clamp(1.75rem, 5vw + 1rem, 4rem);
+    font-weight: 900;
+    margin: auto, auto;
+    padding: clamp(10px, 3vw, 20px);
+    text-align: center;
+    line-height: 1.2;
+    word-wrap: normal;  
+}
+
+h2 {
+    color: #4CAF50;
+    font-size: clamp(1.75rem, 5vw + 1rem, 4rem);
+    font-weight: 900;
+    margin: auto, auto;
+    padding: clamp(10px, 3vw, 20px);
+    text-align: center;
+    line-height: 1.2;
+    word-wrap: normal;  
+}
+
+.container {
+    align-items: center;
+    justify-content: center;
+}
+
+.busCodeInput {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: clamp(1rem, 3vw + 0.5rem, 1.25rem);
+    font-weight: 700;
+
+    text-align: center;
+
+    color: #505050;
+    background-color: #f2f2f2;
+
+    border-style: solid;
+    border-width: clamp(1px, 0.4vw, 2px);
+    border-radius: clamp(5px, 1.5vw, 9px);
+    border-color: #45a248;
+
+    padding: clamp(8px, 2vw, 14px) clamp(16px, 4vw, 75px);
+    margin: auto;
+    min-height: 60px;
+    min-width: 68px;
+    width: min(450px, 70vw);
+    box-sizing: border-box;
+}
+
+p {
+    color: #4CAF50;
+    font-size: clamp(1rem, 2.5vw + 0.5rem, 1.5rem);
+    font-weight: 900;
+    margin: auto;
+    padding: 10px;
+    text-align: center;
+    word-wrap: break-word;
+}
+
+.btn {
+    container-type: inline-size;
+    container-name: btn;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    font-size: clamp(1rem, 3vw + 0.5rem, 3rem);
+    font-weight: 900;
+
+    color: #f2f2f2;
+    background-color: #4CAF50;
+
+    border-style: solid;
+    border-width: clamp(1px, 0.4vw, 2px);
+    border-radius: clamp(5px, 1.5vw, 9px);
+    border-color: #45a248;
+
+    margin: clamp(10px, 5vw, 50px) auto;
+    padding: clamp(6px, 1vw, 18px) clamp(24px, 4vw, 50px);
+
+    min-height: 44px;
+    height: auto; 
+    min-width: 68px;
+    width: min(90%, 520px);
+
+    white-space: normal;
+    text-align: center;
+}
+
+.btn:hover {
+    color: #f2f2f2;
+    background-color: #66BB6A;
+    border-color: #66BB6A;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px #4caf504d;
+}
+
+.btn:active{
+    color: #f2f2f2;
+    background-color: #388E3C;
+    border-color: #2E7D32;
+    transform: translateY(0);
+    box-shadow: 0 2px 4px #00000033;
+}
+
+p {
+    font-size: clamp(1.125rem, 3vw + 0.5rem, 2.625rem);
+}
+
+.departureTimeText {
+    font-size: clamp(1.125rem, 3vw + 0.5rem, 2.625rem);
+}
+
+.timeContainer {
+    margin-top: 50px;
+    margin-bottom: 50px;
+    display: grid;
+    grid-template-columns: 2fr 2fr; 
+    text-align: center;
+    justify-content: center;
+    gap: 5px 40px; 
+}
