@@ -1,35 +1,62 @@
+type AnnouncementItem = {
+  MESAJ?: string;
+};
+
+type BusResponse = {
+  timeRemaining?: string;
+  secondTimeReamining?: string;
+  announcement?: AnnouncementItem[];
+};
+
 const busCodeInput = document.getElementById("busCodeInput");
-
 const departureTimeBtn = document.getElementById("departureTimeBtn");
-
 const firstDT = document.querySelector(".timeContainer #firstDT");
 const secondDT = document.querySelector(".timeContainer #secondDT");
-
 const announcementText = document.getElementById("announcementText");
 
+if (
+  !(busCodeInput instanceof HTMLInputElement) ||
+  !(departureTimeBtn instanceof HTMLButtonElement) ||
+  !(firstDT instanceof HTMLElement) ||
+  !(secondDT instanceof HTMLElement) ||
+  !(announcementText instanceof HTMLElement)
+) {
+  throw new Error("Required DOM elements were not found");
+}
+
 departureTimeBtn.addEventListener("click", async () => {
-    const busCode = busCodeInput.value.trim();
-    
-    if (!busCode) {
-        alert("Lütfen bir hat kodu girin!");
-        return;
-    }
-    
-    try {
-        const response = await fetch(`/bus/${encodeURIComponent(busCode)}`);
-        const responseJson = await response.json(); 
+  const busCode = busCodeInput.value.trim();
 
-        firstDT.textContent = "First: " + responseJson.timeRemaining;
-        secondDT.textContent = "Then: " + responseJson.secondTimeReamining;
+  if (!busCode) {
+    alert("Lutfen bir hat kodu girin!");
+    return;
+  }
 
-        if (responseJson.announcement.length === 0) {
-            announcementText.innerHTML = `<p>Duyuru yok</p>`;
-        } else {
-            announcementText.innerHTML = responseJson.announcement
-                .map(a => `<p>${a.MESAJ}</p>`)
-                .join("");
-        }
-    } catch (err) {
-        alert("Hata: " + err.message);
+  try {
+    const response = await fetch(`/bus/${encodeURIComponent(busCode)}`);
+
+    if (!response.ok) {
+      throw new Error(`Sunucu hatasi: ${response.status}`);
     }
+
+    const responseJson = (await response.json()) as BusResponse;
+    const firstTime = responseJson.timeRemaining ?? "Bilinmiyor";
+    const secondTime = responseJson.secondTimeReamining ?? "Bilinmiyor";
+    const announcements = responseJson.announcement ?? [];
+
+    firstDT.textContent = `First: ${firstTime}`;
+    secondDT.textContent = `Then: ${secondTime}`;
+
+    if (announcements.length === 0) {
+      announcementText.innerHTML = "<p>Duyuru yok</p>";
+      return;
+    }
+
+    announcementText.innerHTML = announcements
+      .map((item) => `<p>${item.MESAJ ?? ""}</p>`)
+      .join("");
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Bilinmeyen hata";
+    alert(`Hata: ${message}`);
+  }
 });
