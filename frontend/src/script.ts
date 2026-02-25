@@ -8,7 +8,7 @@ type BusResponse = {
   announcement?: AnnouncementItem[];
 };
 
-function getBusRoutesFromTable(body: HTMLTableSectionElement): string[] {
+function getBusCodesFromTable(body: HTMLTableSectionElement): string[] {
   return Array.from(body.rows)
     .map((row) => normalizeBusCode(row.cells[0]?.textContent ?? ""))
     .filter((code) => code.length > 0);
@@ -72,9 +72,9 @@ function createBusRow(busCode: string): HTMLTableRowElement {
 function addBusFromInput(): void {
   const busCode = normalizeBusCode(busCodeInputEl.value);
 
-  const uniqueRoutes = [...new Set(getBusRoutesFromTable(busTableBody))];
+  const uniqueBusCodes = [...new Set(getBusCodesFromTable(busTableBody))];
 
-  if(uniqueRoutes.includes(busCode)) return;
+  if(uniqueBusCodes.includes(busCode)) return;
 
   if (!busCode) {
     alert("Lutfen bir hat kodu girin!");
@@ -85,10 +85,9 @@ function addBusFromInput(): void {
   busCodeInputEl.value = "";
   busCodeInputEl.focus();
 
-  const updatedRoutes = [...new Set(getBusRoutesFromTable(busTableBody))];
+  const updatedBusCodes= [...new Set(getBusCodesFromTable(busTableBody))];
 
-  localStorage.setItem("busRoutes", JSON.stringify(updatedRoutes))
-  console.log(JSON.stringify(updatedRoutes));
+  localStorage.setItem("busCodes", JSON.stringify(updatedBusCodes))
 }
 
 busTableBtnEl.addEventListener("click", () => {
@@ -124,11 +123,10 @@ busTableBody.addEventListener("click", (event) => {
   const row = removeButton.closest("tr");
 
   if (row instanceof HTMLTableRowElement) {
-    console.log(parsedBusRoutes);
     row.remove();
-    localStorage.removeItem("busRoutes");
-    const uniqueRoutes = [...new Set(getBusRoutesFromTable(busTableBody))];
-    localStorage.setItem("busRoutes", JSON.stringify(uniqueRoutes))
+    localStorage.removeItem("busCodes");
+    const uniqueBusCodes = [...new Set(getBusCodesFromTable(busTableBody))];
+    localStorage.setItem("busCodes", JSON.stringify(uniqueBusCodes))
   }
 });
 
@@ -145,16 +143,15 @@ departureTimeBtnEl.addEventListener("click", async () => {
   } 
   */
 
-  let uniqueRoutes = [...new Set(getBusRoutesFromTable(busTableBody))];
-  console.log(uniqueRoutes);
-
   try{
+    let busCodes = [...new Set(getBusCodesFromTable(busTableBody))];
+
     const response: Response = await fetch("/bus/routes", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ uniqueRoutes }),
+      body: JSON.stringify({ busCodes }),
     });
 
     if (!response.ok) {
@@ -169,7 +166,7 @@ departureTimeBtnEl.addEventListener("click", async () => {
 
   } catch(error: unknown) {
     const message = error instanceof Error ? error.message : " was";
-    alert(`Hata: ${message}`);
+    alert(`Front end error: ${message}`);
   }
 
   /*
@@ -203,14 +200,12 @@ departureTimeBtnEl.addEventListener("click", async () => {
   */
 });
 
-const savedBusRoutes: string | null = localStorage.getItem("busRoutes");
+const savedBusCodes: string | null = localStorage.getItem("busCodes");
 
-const parsedBusRoutes: string[] = savedBusRoutes
-  ? JSON.parse(savedBusRoutes)
+const parsedBusCodes: string[] = savedBusCodes
+  ? JSON.parse(savedBusCodes)
   : [];
 
-parsedBusRoutes.forEach((busCode) => {
+parsedBusCodes.forEach((busCode) => {
   busTableBody.appendChild(createBusRow(busCode));
 });
-
-console.log(parsedBusRoutes);

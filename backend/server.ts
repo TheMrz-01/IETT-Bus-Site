@@ -1,11 +1,11 @@
 //[TODO] Implement cache system
 //[TODO] Implement rate limit
 //[TODO] Get proper output
-import express, { type Request, type Response } from "express";
+import express, { type Request, type Response, type json } from "express";
 import cors, { type CorsOptions } from "cors";
 
-type BusRoutesBody = {
-  busRoutes: string[];
+type BusCodesBody = {
+  busCodes: string[];
 };
 
 type SeferItem = {
@@ -178,9 +178,17 @@ function getTimeDifference(time: Date, timeNow: Date): string{
 
 function getCorrectAnnouncement(
   json: AnnouncementItem[],
-  hat: string,
+  busCode: string,
 ): AnnouncementItem[] {
-  return json.filter((item) => item.HATKODU?.trim() === String(hat).trim());
+  return json.filter((item) => item.HATKODU?.trim() === String(busCode).trim());
+}
+
+function isBusCodesBody(value: unknown): value is BusCodesBody {
+  return (
+    isRecord(value) &&
+    Array.isArray(value.busCodes) &&
+    value.busCodes.every((item) => typeof item === "string")
+  );
 }
 
 function getCorrectTypeData(
@@ -210,29 +218,22 @@ function getCorrectTypeData(
   return correctTypeData;
 }
 
-function isBusRoutesBody(value: unknown): value is BusRoutesBody {
-  if (typeof value !== "object" || value === null) return false;
-  if (!("hats" in value)) return false;
-  const hats = (value as { hats?: unknown }).hats;
-  return Array.isArray(hats) && hats.every((h) => typeof h === "string");
-}
-
 //------------------------------------------------------------------------------
 
 const app = express();
 
 app.use(cors());
+app.use(express.json())
 app.use(express.static("frontend"));
 app.use("/assets", express.static("assets"));
 
 app.post(("/bus/routes"), async (req: Request, res: Response) => {
   const body = req.body;
 
-  if (!isBusRoutesBody(body)) {
-    return res.status(400).json({ error: "Body must be { busRoutes: string[] }" });
+  if (!isBusCodesBody(body)) {
+    return res.status(400).send("Invalid request body");
   }
 
-  const busRoutes = [...new Set(body.busRoutes.map((h) => h.trim().toUpperCase()).filter(Boolean))];
 })
 
 /*
