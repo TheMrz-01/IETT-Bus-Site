@@ -4,6 +4,10 @@
 import express, { type Request, type Response } from "express";
 import cors, { type CorsOptions } from "cors";
 
+type BusRoutesBody = {
+  busRoutes: string[];
+};
+
 type SeferItem = {
   SYON: string;
   SGUNTIPI: string;
@@ -138,7 +142,8 @@ function getDatePartNumber(
   return Number(value);
 }
 
-//[TODO] Check values in depomen
+//[TODO] Check date values in deployment
+
 function getIstanbulNow(): Date {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/Istanbul",
@@ -205,12 +210,32 @@ function getCorrectTypeData(
   return correctTypeData;
 }
 
+function isBusRoutesBody(value: unknown): value is BusRoutesBody {
+  if (typeof value !== "object" || value === null) return false;
+  if (!("hats" in value)) return false;
+  const hats = (value as { hats?: unknown }).hats;
+  return Array.isArray(hats) && hats.every((h) => typeof h === "string");
+}
+
+//------------------------------------------------------------------------------
+
 const app = express();
 
 app.use(cors());
 app.use(express.static("frontend"));
 app.use("/assets", express.static("assets"));
 
+app.post(("/bus/routes"), async (req: Request, res: Response) => {
+  const body = req.body;
+
+  if (!isBusRoutesBody(body)) {
+    return res.status(400).json({ error: "Body must be { busRoutes: string[] }" });
+  }
+
+  const busRoutes = [...new Set(body.busRoutes.map((h) => h.trim().toUpperCase()).filter(Boolean))];
+})
+
+/*
 app.get("/bus/:hatKodu", async (req, res) => {
     const hat: string = req.params.hatKodu;
 
@@ -290,6 +315,7 @@ app.get("/bus/:hatKodu", async (req, res) => {
         }
     }
 })
+*/
 
 const PORT = process.env.PORT || 3000;
 

@@ -8,11 +8,16 @@ type BusResponse = {
   announcement?: AnnouncementItem[];
 };
 
+function getBusRoutesFromTable(body: HTMLTableSectionElement): string[] {
+  return Array.from(body.rows)
+    .map((row) => normalizeBusCode(row.cells[0]?.textContent ?? ""))
+    .filter((code) => code.length > 0);
+}
+
+
 const busCodeInput = document.getElementById("busCodeInput");
 const busTableBtn = document.getElementById("busTableBtn");
 const departureTimeBtn = document.getElementById("departureTimeBtn");
-const firstDT = document.querySelector(".timeContainer #firstDT");
-const secondDT = document.querySelector(".timeContainer #secondDT");
 const announcementText = document.getElementById("announcementText");
 const busTable = document.querySelector(".busTable");
 
@@ -67,6 +72,10 @@ function createBusRow(busCode: string): HTMLTableRowElement {
 function addBusFromInput(): void {
   const busCode = normalizeBusCode(busCodeInputEl.value);
 
+  const uniqueRoutes = [...new Set(getBusRoutesFromTable(busTableBody))];
+
+  if(uniqueRoutes.includes(busCode)) return;
+
   if (!busCode) {
     alert("Lutfen bir hat kodu girin!");
     return;
@@ -75,6 +84,11 @@ function addBusFromInput(): void {
   busTableBody.appendChild(createBusRow(busCode));
   busCodeInputEl.value = "";
   busCodeInputEl.focus();
+
+  const updatedRoutes = [...new Set(getBusRoutesFromTable(busTableBody))];
+
+  localStorage.setItem("busRoutes", JSON.stringify(updatedRoutes))
+  console.log(JSON.stringify(updatedRoutes));
 }
 
 busTableBtnEl.addEventListener("click", () => {
@@ -110,11 +124,17 @@ busTableBody.addEventListener("click", (event) => {
   const row = removeButton.closest("tr");
 
   if (row instanceof HTMLTableRowElement) {
+    console.log(parsedBusRoutes);
     row.remove();
+    localStorage.removeItem("busRoutes");
+    const uniqueRoutes = [...new Set(getBusRoutesFromTable(busTableBody))];
+    localStorage.setItem("busRoutes", JSON.stringify(uniqueRoutes))
   }
 });
 
 departureTimeBtnEl.addEventListener("click", async () => {
+  //[TODO] Check the table
+  /*
   if (
     !(firstDT instanceof HTMLElement) ||
     !(secondDT instanceof HTMLElement) ||
@@ -122,15 +142,37 @@ departureTimeBtnEl.addEventListener("click", async () => {
   ) {
     alert("Saat/duyuru alanlari bulunamadi.");
     return;
+  } 
+  */
+
+  let uniqueRoutes = [...new Set(getBusRoutesFromTable(busTableBody))];
+  console.log(uniqueRoutes);
+
+  try{
+    const response: Response = await fetch("/bus/routes", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ uniqueRoutes }),
+    });
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => "");
+      throw new Error(`HTTP error ${response.status}: ${text || response.statusText}`);
+    }
+
+    const data: unknown = await response.json();
+    console.log(data);
+
+    //[TODO]: Display results
+
+  } catch(error: unknown) {
+    const message = error instanceof Error ? error.message : " was";
+    alert(`Hata: ${message}`);
   }
 
-  const busCode = normalizeBusCode(busCodeInputEl.value);
-
-  if (!busCode) {
-    alert("Lutfen bir hat kodu girin!");
-    return;
-  }
-
+  /*
   try {
     const response = await fetch(`/bus/${encodeURIComponent(busCode)}`);
 
@@ -158,4 +200,17 @@ departureTimeBtnEl.addEventListener("click", async () => {
     const message = error instanceof Error ? error.message : "Bilinmeyen hata";
     alert(`Hata: ${message}`);
   }
+  */
 });
+
+const savedBusRoutes: string | null = localStorage.getItem("busRoutes");
+
+const parsedBusRoutes: string[] = savedBusRoutes
+  ? JSON.parse(savedBusRoutes)
+  : [];
+
+parsedBusRoutes.forEach((busCode) => {
+  busTableBody.appendChild(createBusRow(busCode));
+});
+
+console.log(parsedBusRoutes);
