@@ -10,6 +10,11 @@ html{
     text-size-adjust: 100%;
 }
 
+:root {
+    --table-width: min(96vw, 980px);
+    --control-height: 60px;
+}
+
 body {
     font-family: Arial, sans-serif;
     margin: 0;
@@ -43,11 +48,15 @@ h2 {
     justify-content: center;
 }
 
-.busCodeInput {
+.controls {
+    width: var(--table-width);
+    margin: clamp(14px, 3vw, 30px) auto clamp(10px, 2vw, 18px);
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: clamp(8px, 1.6vw, 16px);
+}
 
+.controls .busCodeInput {
     font-size: clamp(1rem, 3vw + 0.5rem, 1.25rem);
     font-weight: 700;
 
@@ -62,21 +71,13 @@ h2 {
     border-color: #45a248;
 
     padding: clamp(8px, 2vw, 14px) clamp(16px, 4vw, 75px);
-    margin: auto;
-    min-height: 60px;
-    min-width: 68px;
-    width: min(450px, 70vw);
+    margin: 0;
+    min-height: var(--control-height);
+    height: var(--control-height);
+    min-width: 0;
+    width: auto;
+    flex: 1 1 auto;
     box-sizing: border-box;
-}
-
-p {
-    color: #4CAF50;
-    font-size: clamp(1rem, 2.5vw + 0.5rem, 1.5rem);
-    font-weight: 900;
-    margin: auto;
-    padding: 10px;
-    text-align: center;
-    word-wrap: break-word;
 }
 
 .btn {
@@ -124,6 +125,118 @@ p {
     border-color: #2E7D32;
     transform: translateY(0);
     box-shadow: 0 2px 4px #00000033;
+}
+
+.busTableBtn {
+    margin: 0;
+    padding: clamp(7px, 1vw, 14px) clamp(14px, 2vw, 26px);
+
+    font-size: clamp(1.05rem, 0.9vw + 0.75rem, 1.35rem);
+    font-weight: 900;
+
+    min-height: var(--control-height);
+    height: var(--control-height);
+    min-width: 180px;
+    width: clamp(180px, 24vw, 270px);
+    flex: 0 0 clamp(180px, 24vw, 270px);
+    white-space: nowrap;
+}
+
+.busTable {
+    width: var(--table-width);
+    margin: clamp(14px, 3vw, 30px) auto clamp(18px, 4vw, 40px);
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid #77b885;
+    border-radius: 9px;
+    overflow: hidden;
+    box-shadow: 0 10px 24px #2e7d3222;
+    background: #f7fbf8;
+}
+
+.busTable th {
+    background: linear-gradient(180deg, #4CAF50 0%, #3f9e45 100%);
+    color: #ffffff;
+    font-size: clamp(0.95rem, 1.1vw + 0.6rem, 1.2rem);
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    padding: clamp(10px, 1.8vw, 14px) clamp(12px, 2vw, 18px);
+    border-bottom: 1px solid #63ac6e;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.busTable td {
+    color: #2f4634;
+    font-size: clamp(0.95rem, 1vw + 0.65rem, 1.12rem);
+    font-weight: 600;
+    padding: clamp(9px, 1.6vw, 13px) clamp(12px, 2vw, 18px);
+    border-bottom: 1px solid #d8e9dc;
+    text-align: left;
+}
+
+.busTable .colAction,
+.busTable .cellAction {
+    width: 76px;
+    text-align: center;
+}
+
+.rowRemoveBtn {
+    width: 34px;
+    height: 34px;
+    border: 1px solid #4caf50;
+    border-radius: 999px;
+    background-color: #e7f4ea;
+    color: #2f7b36;
+    font-size: 1.2rem;
+    font-weight: 900;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.rowRemoveBtn:hover {
+    background-color: #4caf50;
+    color: #ffffff;
+    transform: translateY(-1px);
+}
+
+.rowRemoveBtn:active {
+    transform: translateY(0);
+}
+
+.busTable tr:nth-child(even) {
+    background-color: #eef6f0;
+}
+
+.busTable tr:hover {
+    background-color: #e0f0e4;
+}
+
+.busTable tr:last-child td {
+    border-bottom: none;
+}
+
+@media (max-width: 700px) {
+    .controls {
+        gap: 10px;
+    }
+
+    .busTableBtn {
+        min-width: 150px;
+        width: clamp(150px, 33vw, 190px);
+        flex-basis: clamp(150px, 33vw, 190px);
+    }
+}
+
+p {
+    color: #4CAF50;
+    font-size: clamp(1rem, 2.5vw + 0.5rem, 1.5rem);
+    font-weight: 900;
+    margin: auto;
+    padding: 10px;
+    text-align: center;
+    word-wrap: break-word;
 }
 
 p {

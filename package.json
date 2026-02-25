@@ -14,8 +14,8 @@
   "scripts": {
     "dev": "bun run watch:frontend & bun run dev:backend",
     "dev:backend": "bun run backend/server.ts",
-    "build:frontend": "bun build frontend/script.ts --outfile frontend/script.js --target=browser",
-    "watch:frontend": "bun build frontend/script.ts --outfile frontend/script.js --target=browser --watch",
+    "build:frontend": "bun build frontend/src/script.ts --outfile frontend/dist/script.js --target=browser",
+    "watch:frontend": "bun build frontend/src/script.ts --outfile frontend/dist/script.js --target=browser --watch",
     "typecheck": "bunx tsc --noEmit"
   },
   "dependencies": {

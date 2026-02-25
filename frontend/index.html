@@ -8,19 +8,31 @@
     <title>IETT API</title>
 </head>
 <body>
-    <script type="module" src="script.js" defer="true"></script>
+    <script type="module" src="dist/script.js" defer="true"></script>
 
-    <h1>OTOBUS SAAT BAKMAMACALARALAL (RELATIVE 4 HACIOSMAN TWAN)</h1>
+    <h1>Otbüs saat</h1>
 
     <div class="container">
-        <input type="text" class="busCodeInput" id="busCodeInput" placeholder="Hat Kodu Örn: 25Y"> 
+        <div class="controls">
+            <input type="text" class="busCodeInput" id="busCodeInput" placeholder="Hat Kodu Örn: 25Y"> 
 
-        <button class="btn departureTimeBtn" id="departureTimeBtn">Press for ze departure times</button>
-
-        <div class="timeContainer">
-            <p class="departureTimeText" id="firstDT">Holalalal</p>
-            <p class="departureTimeText" id="secondDT">lololoHa</p>
+            <button class="btn busTableBtn" id="busTableBtn">Otobüs ekle</button>
         </div>
+
+            <table class="busTable">
+                <thead>
+                    <tr>
+                        <th>Otobüsler</th>
+                        <th>En yakın birinci saat</th>
+                        <th>En yakın ikinci saat</th>
+                        <th class="colAction">Sil</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+
+            <button class="btn departureTimeBtn" id="departureTimeBtn">Press for ze departure times</button>
 
         <h2>DUYURULARARAR</h2>
 
