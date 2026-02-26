@@ -17,7 +17,32 @@ type announcementJson = {
 
 type announcementInfo = {
   "HATKODU": string;
+  "HAT": string;
+  "TIP": "Günlük" | "Sefer" | string; 
+  "GUNCELLEME_SAATI": string;        
   "MESAJ": string;
+};
+
+type departureTimesJson = {
+  SHATKODU: string;
+  HATADI: string;
+  SGUZERAH: string;
+  SYON: string;
+  SGUNTIPI: string;
+  GUZERGAH_ISARETI: null;
+  SSERVISTIPI: string;
+  DT: string;
+};
+
+type departureTimesInfo = {
+  "SHATKODU": string;
+  "HATADI": string;
+  "SGUZERAH": string;
+  "SYON": string;
+  "SGUNTIPI": string;
+  "GUZERGAH_ISARETI": null;
+  "SSERVISTIPI": string;
+  "DT": string;
 };
 
 type IstanbulDatePart = "year" | "month" | "day" | "hour" | "minute" | "second";
@@ -34,6 +59,26 @@ function isAnnouncementJsonArray(x: any): x is announcementJson[] {
       typeof item.GUNCELLEME_SAATI === "string" &&
       typeof item.MESAJ === "string"
     )
+  );
+}
+
+function isDepartureTimeJson(value: unknown): value is departureTimesJson[] {
+  return (
+    Array.isArray(value) &&
+    value.every((item) => {
+      if (!isRecord(item)) return false;
+      const dt = typeof item.DT === "string" ? item.DT.trim() : "";
+      return (
+        typeof item.SHATKODU === "string" &&
+        typeof item.HATADI === "string" &&
+        typeof item.SGUZERAH === "string" &&
+        (item.SYON === "G" || item.SYON === "D") &&
+        (item.SGUNTIPI === "C" || item.SGUNTIPI === "I" || item.SGUNTIPI === "P") &&
+        (item.GUZERGAH_ISARETI === null || typeof item.GUZERGAH_ISARETI === "string") &&
+        typeof item.SSERVISTIPI === "string" &&
+        /^([01]?\d|2[0-3]):[0-5]\d$/.test(dt)
+      );
+    })
   );
 }
 
@@ -158,7 +203,7 @@ function isBusCodesBody(value: unknown): value is BusCodesBody {
 
 //[TODO]: fixy fix fix
 function getCorrectTypeData(
-  data: SeferItem[],
+  data: departureTimesInfo[],
   turkeyNow: Date ): Date[] {
 
   const filteredData = data.filter(
@@ -184,6 +229,29 @@ function getCorrectTypeData(
   return correctTypeData;
 }
 
+async function fetchTimesForCodes(busCode: string, ) {
+  //[TODO]: Fetch time and calculate dt1 dt2 as normal
+  const departureTimeText = await callSoap(
+    "https://api.ibb.gov.tr/iett/UlasimAnaVeri/PlanlananSeferSaati.asmx",
+    "GetPlanlananSeferSaati_json",
+    `<HatKodu>${busCode}</HatKodu>`
+  )
+
+  const departureTimeData = xml2json(departureTimeText,"GetPlanlananSeferSaati_jsonResult");
+
+  if(!isDepartureTimeJson(departureTimeData)){
+    throw new Error("Invalid departure time shape");
+  }
+
+  const turkeyNow: Date = getIstanbulNow();
+
+  const correctTypeData: Date[] = getCorrectTypeData(departureTimeData, turkeyNow);
+
+  //[TODO]: You know what to do twinnn
+
+  return correctTypeData;
+}
+
 async function fetchAllAnnouncements(): Promise<string>{
   const response = callSoap(
     "https://api.ibb.gov.tr/iett/UlasimDinamikVeri/Duyurular.asmx",
@@ -193,7 +261,8 @@ async function fetchAllAnnouncements(): Promise<string>{
     return response;
 }
 
-function getRelevantAnnouncements(rawAllAnnnouncements: string, busCodes: string[]): announcementInfo[]{
+async function getRelevantAnnouncements(busCodes: string[]): Promise<announcementInfo[]>{
+  const rawAllAnnnouncements = await fetchAllAnnouncements();
   const jsonAllAnnouncements = xml2json(rawAllAnnnouncements,"GetDuyurular_jsonResult");
 
   if (!isAnnouncementJsonArray(jsonAllAnnouncements)) {
@@ -211,6 +280,9 @@ function getRelevantAnnouncements(rawAllAnnnouncements: string, busCodes: string
   relevant.forEach((item) => {
     relevantAnnouncements.push({
       "HATKODU": item.HATKODU,
+      "HAT": item.HAT,
+      "TIP": item.TIP, 
+      "GUNCELLEME_SAATI": item.GUNCELLEME_SAATI,      
       "MESAJ": item.MESAJ
     });
   })
@@ -244,18 +316,18 @@ app.post(("/bus/routes"), async (req: Request<{}, {}, unknown>, res: Response) =
 
   try{
     //[TODO]: Concorrunt upstream code
-    /*
-    const [AllAnnouncements, departureTimes] = Promise.all(
+    const [AllAnnouncements, departureTimes] = await Promise.all([
+      getRelevantAnnouncements(busCodes),
+      Promise.allSettled(busCodes.map((code) => fetchTimesForCodes(code)))
+    ]);
 
-    )
-    */
-
-    const rawAllAnnnouncements = await fetchAllAnnouncements();
+    return res.json(departureTimes);
     
-    const messages = getRelevantAnnouncements(rawAllAnnnouncements, busCodes);
+    /*
+    const messages = await getRelevantAnnouncements(busCodes);
 
     return res.json({ "announcements": messages });
-
+    */
   } catch(error: unknown){
       console.error("Server says: " + error);
       if (!res.headersSent) {

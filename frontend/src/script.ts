@@ -1,3 +1,4 @@
+//[TODO]: Add a toggle switch for different type of heading
 type AnnouncementItem = {
   MESAJ?: string;
 };
@@ -11,6 +12,9 @@ type BusResponse = {
 //TEMP TYPE
 type AnnouncementInfo = {
   "HATKODU": string;
+  "HAT": string;
+  "TIP": "Günlük" | "Sefer" | string; 
+  "GUNCELLEME_SAATI": string;        
   "MESAJ": string;
 };
 
@@ -233,7 +237,7 @@ departureTimeBtnEl.addEventListener("click", async () => {
       cell.textContent = "Beklenmeyen duyuru formati";
 
       row.appendChild(cell);
-      
+
       announcementTableBody.appendChild(row);
     }
 
