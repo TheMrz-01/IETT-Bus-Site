@@ -230,7 +230,6 @@ function getCorrectTypeData(
 }
 
 async function fetchTimesForCodes(busCode: string, ) {
-  //[TODO]: Fetch time and calculate dt1 dt2 as normal
   const departureTimeText = await callSoap(
     "https://api.ibb.gov.tr/iett/UlasimAnaVeri/PlanlananSeferSaati.asmx",
     "GetPlanlananSeferSaati_json",
@@ -247,9 +246,40 @@ async function fetchTimesForCodes(busCode: string, ) {
 
   const correctTypeData: Date[] = getCorrectTypeData(departureTimeData, turkeyNow);
 
-  //[TODO]: You know what to do twinnn
+  if (correctTypeData[0] instanceof Date && correctTypeData[1] instanceof Date
+    && turkeyNow <= correctTypeData[0]) {
 
-  return correctTypeData;
+  return ({
+      timeRemaining: getTimeDifference(correctTypeData[0], turkeyNow),
+      secondTimeReamining: getTimeDifference(correctTypeData[1], turkeyNow),
+    });
+  }
+
+  let firstBus = undefined;
+  let secondBus = undefined;
+  
+  for (let i = 0; i < correctTypeData.length; i++) {
+    const cur = correctTypeData[i];
+
+    if (cur && cur instanceof Date && cur > turkeyNow) {
+      firstBus = cur;
+
+      if (i + 1 < correctTypeData.length) {
+        secondBus = correctTypeData[i + 1];
+      }
+      break;
+    } 
+  }
+
+  if (firstBus && secondBus) {
+    const firstDT = getTimeDifference(firstBus, turkeyNow);
+    const secondDT = getTimeDifference(secondBus, turkeyNow);
+
+    return ({
+      timeRemaining: firstDT,
+      secondTimeReamining: secondDT,
+    });
+  }
 }
 
 async function fetchAllAnnouncements(): Promise<string>{
@@ -321,7 +351,7 @@ app.post(("/bus/routes"), async (req: Request<{}, {}, unknown>, res: Response) =
       Promise.allSettled(busCodes.map((code) => fetchTimesForCodes(code)))
     ]);
 
-    return res.json(departureTimes);
+    return res.json();
     
     /*
     const messages = await getRelevantAnnouncements(busCodes);
