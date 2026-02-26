@@ -70,9 +70,10 @@ function createBusRow(busCode: string): HTMLTableRowElement {
 }
 
 function addBusFromInput(): void {
-  const busCode = normalizeBusCode(busCodeInputEl.value);
-
   const uniqueBusCodes = [...new Set(getBusCodesFromTable(busTableBody))];
+  if(uniqueBusCodes.length > 4) {alert("Max 5 buses can be added"); return; }
+
+  const busCode = normalizeBusCode(busCodeInputEl.value);
 
   if(uniqueBusCodes.includes(busCode)) return;
 

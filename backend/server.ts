@@ -8,17 +8,6 @@ type BusCodesBody = {
   busCodes: string[];
 };
 
-type SeferItem = {
-  SYON: string;
-  SGUNTIPI: string;
-  DT: string;
-};
-
-type AnnouncementItem = {
-  HATKODU: string;
-  MESAJ?: string;
-};
-
 type IstanbulDatePart = "year" | "month" | "day" | "hour" | "minute" | "second";
 
 function buildEnvelope(methodName: string, innerBody: string): string {
@@ -61,53 +50,6 @@ async function callSoap(url: string, methodName: string, innerBody: string): Pro
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
-}
-
-function toSeferItems(value: unknown): SeferItem[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value.flatMap((item) => {
-    if (!isRecord(item)) {
-      return [];
-    }
-
-    const syon = item.SYON;
-    const sguntipi = item.SGUNTIPI;
-    const dt = item.DT;
-
-    if (typeof syon !== "string" || typeof sguntipi !== "string" || typeof dt !== "string") {
-      return [];
-    }
-
-    return [{ SYON: syon, SGUNTIPI: sguntipi, DT: dt }];
-  });
-}
-
-function toAnnouncementItems(value: unknown): AnnouncementItem[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value.flatMap((item) => {
-    if (!isRecord(item)) {
-      return [];
-    }
-
-    const hatKodu = item.HATKODU;
-    const mesaj = item.MESAJ;
-
-    if (typeof hatKodu !== "string") {
-      return [];
-    }
-
-    if (typeof mesaj === "string") {
-      return [{ HATKODU: hatKodu, MESAJ: mesaj }];
-    }
-
-    return [{ HATKODU: hatKodu }];
-  });
 }
 
 function xml2json(xmlText: string, resultTag: string): unknown {
@@ -176,21 +118,18 @@ function getTimeDifference(time: Date, timeNow: Date): string{
   return`${hours}:${minutes.toString().padStart(2, '0')}`;
 }
 
-function getCorrectAnnouncement(
-  json: AnnouncementItem[],
-  busCode: string,
-): AnnouncementItem[] {
-  return json.filter((item) => item.HATKODU?.trim() === String(busCode).trim());
-}
-
 function isBusCodesBody(value: unknown): value is BusCodesBody {
   return (
-    isRecord(value) &&
-    Array.isArray(value.busCodes) &&
-    value.busCodes.every((item) => typeof item === "string")
+    typeof value === "object" &&
+    value !== null &&
+    "busCodes" in value &&
+    Array.isArray((value as { busCodes?: unknown }).busCodes) &&
+    (value as { busCodes: unknown[] }).busCodes.every((x) => typeof x === "string") &&
+    (value as { busCodes: unknown[] }).busCodes.length <= 5
   );
 }
 
+//[TODO]: fixy fix fix
 function getCorrectTypeData(
   data: SeferItem[],
   turkeyNow: Date ): Date[] {
@@ -227,13 +166,25 @@ app.use(express.json())
 app.use(express.static("frontend"));
 app.use("/assets", express.static("assets"));
 
-app.post(("/bus/routes"), async (req: Request, res: Response) => {
-  const body = req.body;
-
-  if (!isBusCodesBody(body)) {
+app.post(("/bus/routes"), async (req: Request<{}, {}, unknown>, res: Response) => {
+  if (!isBusCodesBody(req.body)) {
     return res.status(400).send("Invalid request body");
   }
 
+  const busCodes = [...new Set(
+    req.body.busCodes.map((c) => c.trim().toUpperCase()).filter(Boolean)
+  )];
+
+  try{
+    busCodes.forEach((busCode) => {
+      console.log(busCode);
+    });
+  } catch(error: unknown){
+      console.error("Server says: " + error);
+      if (!res.headersSent) {
+        res.status(500).send("SOAP request failed");
+      }
+  }
 })
 
 /*
