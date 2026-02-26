@@ -320,6 +320,25 @@ async function getRelevantAnnouncements(busCodes: string[]): Promise<announcemen
   return relevantAnnouncements;  
 }
 
+//[TODO]: Check these
+function normalizeBusCode(value: string): string {
+  return value.trim().toUpperCase();
+}
+
+function indexAnnouncementsByCode(
+  announcements: announcementInfo[],
+): Map<string, announcementInfo[]> {
+  const map = new Map<string, announcementInfo[]>();
+  for (const item of announcements) {
+    const code = normalizeBusCode(item.HATKODU ?? "");
+    if (!code) continue;
+    const current = map.get(code) ?? [];
+    current.push(item);
+    map.set(code, current);
+  }
+  return map;
+}
+
 //------------------------------------------------------------------------------
 
 const app = express();
@@ -345,19 +364,16 @@ app.post(("/bus/routes"), async (req: Request<{}, {}, unknown>, res: Response) =
   }
 
   try{
-    //[TODO]: Concorrunt upstream code
     const [AllAnnouncements, departureTimes] = await Promise.all([
       getRelevantAnnouncements(busCodes),
       Promise.allSettled(busCodes.map((code) => fetchTimesForCodes(code)))
     ]);
 
-    return res.json();
-    
-    /*
-    const messages = await getRelevantAnnouncements(busCodes);
+    //[TODO]: Do your magic
+    const results = {};
 
-    return res.json({ "announcements": messages });
-    */
+    return res.json( {results} );
+
   } catch(error: unknown){
       console.error("Server says: " + error);
       if (!res.headersSent) {
