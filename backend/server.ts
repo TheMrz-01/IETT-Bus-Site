@@ -15,6 +15,11 @@ type announcementJson = {
   MESAJ: string;
 };
 
+type announcementInfo = {
+  "HATKODU": string;
+  "MESAJ": string;
+};
+
 type IstanbulDatePart = "year" | "month" | "day" | "hour" | "minute" | "second";
 
 function isAnnouncementJsonArray(x: any): x is announcementJson[] {
@@ -188,7 +193,7 @@ async function fetchAllAnnouncements(): Promise<string>{
     return response;
 }
 
-function getRelevantAnnouncements(rawAllAnnnouncements: string, busCodes: string[]): announcementJson[]{
+function getRelevantAnnouncements(rawAllAnnnouncements: string, busCodes: string[]): announcementInfo[]{
   const jsonAllAnnouncements = xml2json(rawAllAnnnouncements,"GetDuyurular_jsonResult");
 
   if (!isAnnouncementJsonArray(jsonAllAnnouncements)) {
@@ -201,7 +206,16 @@ function getRelevantAnnouncements(rawAllAnnnouncements: string, busCodes: string
     busCodes.some(code => item.HATKODU.includes(code))
   );
 
-  return relevant;  
+  const relevantAnnouncements: announcementInfo[] = [];
+
+  relevant.forEach((item) => {
+    relevantAnnouncements.push({
+      "HATKODU": item.HATKODU,
+      "MESAJ": item.MESAJ
+    });
+  })
+
+  return relevantAnnouncements;  
 }
 
 //------------------------------------------------------------------------------
@@ -240,7 +254,7 @@ app.post(("/bus/routes"), async (req: Request<{}, {}, unknown>, res: Response) =
     
     const messages = getRelevantAnnouncements(rawAllAnnnouncements, busCodes);
 
-    return res.send(xml2json(rawAllAnnnouncements,"GetDuyurular_jsonResult"));
+    return res.json({ "announcements": messages });
 
   } catch(error: unknown){
       console.error("Server says: " + error);

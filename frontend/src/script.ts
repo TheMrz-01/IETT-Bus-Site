@@ -8,6 +8,16 @@ type BusResponse = {
   announcement?: AnnouncementItem[];
 };
 
+//TEMP TYPE
+type AnnouncementInfo = {
+  "HATKODU": string;
+  "MESAJ": string;
+};
+
+type AnnouncementResponse = {
+  "announcements": AnnouncementInfo[]
+}
+
 function getBusCodesFromTable(body: HTMLTableSectionElement): string[] {
   return Array.from(body.rows)
     .map((row) => normalizeBusCode(row.cells[0]?.textContent ?? ""))
@@ -18,14 +28,15 @@ function getBusCodesFromTable(body: HTMLTableSectionElement): string[] {
 const busCodeInput = document.getElementById("busCodeInput");
 const busTableBtn = document.getElementById("busTableBtn");
 const departureTimeBtn = document.getElementById("departureTimeBtn");
-const announcementText = document.getElementById("announcementText");
 const busTable = document.querySelector(".busTable");
+const announcementTable = document.querySelector(".announcementTable");
 
 if (
   !(busCodeInput instanceof HTMLInputElement) ||
   !(busTableBtn instanceof HTMLButtonElement) ||
   !(departureTimeBtn instanceof HTMLButtonElement) ||
-  !(busTable instanceof HTMLTableElement)
+  !(busTable instanceof HTMLTableElement) ||
+  !(announcementTable instanceof HTMLTableElement)
 ) {
   throw new Error("Required DOM elements were not found");
 }
@@ -34,8 +45,30 @@ const busCodeInputEl = busCodeInput;
 const busTableBtnEl = busTableBtn;
 const departureTimeBtnEl = departureTimeBtn;
 const busTableEl = busTable;
+const announcementTableEl = announcementTable;
 
 const busTableBody = busTableEl.tBodies.item(0) ?? busTableEl.createTBody();
+const announcementTableBody =
+  announcementTableEl.tBodies.item(0) ?? announcementTableEl.createTBody();
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isAnnouncementInfo(value: unknown): value is AnnouncementInfo {
+  return (
+    isRecord(value) &&
+    typeof value.HATKODU === "string" &&
+    typeof value.MESAJ === "string"
+  );
+}
+function isAnnouncementResponse(value: unknown): value is AnnouncementResponse {
+  return (
+    isRecord(value) &&
+    Array.isArray(value.announcements) &&
+    value.announcements.every(isAnnouncementInfo)
+  );
+}
 
 function normalizeBusCode(value: string): string {
   return value.trim().toUpperCase();
@@ -167,8 +200,42 @@ departureTimeBtnEl.addEventListener("click", async () => {
 
     const data: unknown = await response.json();
 
-    //[TODO]: Display results
+    announcementTableBody.replaceChildren();
 
+    if (isAnnouncementResponse(data)) {
+      if (data.announcements.length === 0) {
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+
+        cell.colSpan = 2;
+        cell.textContent = "Duyuru yok";
+
+        row.appendChild(cell);
+        announcementTableBody.appendChild(row);
+      } else {
+        data.announcements.forEach((item) => {
+          const row = document.createElement("tr");
+          const busCodeCell = document.createElement("td");
+          const messageCell = document.createElement("td");
+
+          busCodeCell.textContent = normalizeBusCode(item.HATKODU);
+          messageCell.textContent = item.MESAJ;
+
+          row.append(busCodeCell, messageCell);
+          announcementTableBody.appendChild(row);
+        });
+      }
+    } else {
+      const row = document.createElement("tr");
+      const cell = document.createElement("td");
+
+      cell.colSpan = 2;
+      cell.textContent = "Beklenmeyen duyuru formati";
+
+      row.appendChild(cell);
+      
+      announcementTableBody.appendChild(row);
+    }
 
   } catch(error: unknown) {
     const message = error instanceof Error ? error.message : " was";
