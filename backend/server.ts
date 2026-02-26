@@ -45,6 +45,23 @@ type departureTimesInfo = {
   "DT": string;
 };
 
+type departureTimeRemaining = {
+  timeRemaining: string;
+  secondTimeReamining: string;
+}
+
+type BusRoutesResponse = {
+  ok: boolean;
+  announcements: announcementInfo[];
+  times: Record<string, departureTimeRemaining>;
+  errors: Record<string, Err["error"]>;
+  summary: { total: number; success: number; failed: number };
+};
+
+type Ok<T> = { ok: true; busCode: string; data: T };
+type Err = { ok: false; busCode: string; error: { message: string; status?: number; kind: string } };
+type Result<T> = Ok<T> | Err;
+
 type IstanbulDatePart = "year" | "month" | "day" | "hour" | "minute" | "second";
 
 function isAnnouncementJsonArray(x: any): x is announcementJson[] {
@@ -117,7 +134,15 @@ async function callSoap(url: string, methodName: string, innerBody: string): Pro
       body: envelope,
   });
 
-  return response.text();
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    const err = new Error(`SOAP HTTP ${response.status}: ${text.slice(0, 200)}`);
+    (err as any).status = response.status;
+    (err as any).kind = "upstream";
+    throw err;
+  }
+
+  return await response.text();
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -229,56 +254,63 @@ function getCorrectTypeData(
   return correctTypeData;
 }
 
-async function fetchTimesForCodes(busCode: string, ) {
-  const departureTimeText = await callSoap(
-    "https://api.ibb.gov.tr/iett/UlasimAnaVeri/PlanlananSeferSaati.asmx",
-    "GetPlanlananSeferSaati_json",
-    `<HatKodu>${busCode}</HatKodu>`
-  )
+async function fetchTimesForCode(busCode: string): Promise<Result<departureTimeRemaining>> {
+  try {
+    const departureTimeText = await callSoap(
+      "https://api.ibb.gov.tr/iett/UlasimAnaVeri/PlanlananSeferSaati.asmx",
+      "GetPlanlananSeferSaati_json",
+      `<HatKodu>${busCode}</HatKodu>`
+    );
 
-  const departureTimeData = xml2json(departureTimeText,"GetPlanlananSeferSaati_jsonResult");
+    const departureTimeData = xml2json(departureTimeText, "GetPlanlananSeferSaati_jsonResult");
 
-  if(!isDepartureTimeJson(departureTimeData)){
-    throw new Error("Invalid departure time shape");
-  }
+    if (!isDepartureTimeJson(departureTimeData)) {
+      return {
+        ok: false,
+        busCode,
+        error: { message: "Invalid departure time shape", kind: "parse" },
+      };
+    }
 
-  const turkeyNow: Date = getIstanbulNow();
+    const turkeyNow = getIstanbulNow();
+    const correctTypeData = getCorrectTypeData(departureTimeData, turkeyNow);
 
-  const correctTypeData: Date[] = getCorrectTypeData(departureTimeData, turkeyNow);
+    let firstBus: Date | undefined;
+    let secondBus: Date | undefined;
 
-  if (correctTypeData[0] instanceof Date && correctTypeData[1] instanceof Date
-    && turkeyNow <= correctTypeData[0]) {
-
-  return ({
-      timeRemaining: getTimeDifference(correctTypeData[0], turkeyNow),
-      secondTimeReamining: getTimeDifference(correctTypeData[1], turkeyNow),
-    });
-  }
-
-  let firstBus = undefined;
-  let secondBus = undefined;
-  
-  for (let i = 0; i < correctTypeData.length; i++) {
-    const cur = correctTypeData[i];
-
-    if (cur && cur instanceof Date && cur > turkeyNow) {
-      firstBus = cur;
-
-      if (i + 1 < correctTypeData.length) {
+    for (let i = 0; i < correctTypeData.length; i++) {
+      const cur = correctTypeData[i];
+      if (cur instanceof Date && cur > turkeyNow) {
+        firstBus = cur;
         secondBus = correctTypeData[i + 1];
+        break;
       }
-      break;
-    } 
-  }
+    }
 
-  if (firstBus && secondBus) {
-    const firstDT = getTimeDifference(firstBus, turkeyNow);
-    const secondDT = getTimeDifference(secondBus, turkeyNow);
+    if (!firstBus || !(secondBus instanceof Date)) {
+      return {
+        ok: false,
+        busCode,
+        error: { message: "No upcoming departures found", kind: "nodata" },
+      };
+    }
 
-    return ({
-      timeRemaining: firstDT,
-      secondTimeReamining: secondDT,
-    });
+    const data: departureTimeRemaining = {
+      timeRemaining: getTimeDifference(firstBus, turkeyNow),
+      secondTimeReamining: getTimeDifference(secondBus, turkeyNow),
+    };
+
+    return { ok: true, busCode, data };
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Unknown error";
+    const status = (e as any)?.status as number | undefined;
+    const kind = (e as any)?.kind as string | undefined;
+
+    return {
+      ok: false,
+      busCode,
+      error: { message, status, kind: kind ?? "soap" },
+    };
   }
 }
 
@@ -298,8 +330,6 @@ async function getRelevantAnnouncements(busCodes: string[]): Promise<announcemen
   if (!isAnnouncementJsonArray(jsonAllAnnouncements)) {
     return [];
   }
-
-  const codeSet = new Set(busCodes.map(String));
 
   const relevant = jsonAllAnnouncements.filter(item =>
     busCodes.some(code => item.HATKODU.includes(code))
@@ -325,18 +355,70 @@ function normalizeBusCode(value: string): string {
   return value.trim().toUpperCase();
 }
 
-function indexAnnouncementsByCode(
-  announcements: announcementInfo[],
-): Map<string, announcementInfo[]> {
+function indexAnnouncementsByCode( announcements: announcementInfo[], ): 
+    Map<string, announcementInfo[]> {
   const map = new Map<string, announcementInfo[]>();
   for (const item of announcements) {
     const code = normalizeBusCode(item.HATKODU ?? "");
+
     if (!code) continue;
+
     const current = map.get(code) ?? [];
+
     current.push(item);
     map.set(code, current);
   }
   return map;
+}
+
+function makeRateLimiter(ratePerSec: number) {
+  let tokens = ratePerSec;
+  let last = Date.now();
+
+  return async function acquire() {
+    while (true) {
+      const now = Date.now();
+      const elapsed = now - last;
+
+      if (elapsed >= 1000) {
+        const refill = Math.floor(elapsed / 1000) * ratePerSec;
+        tokens = Math.min(ratePerSec, tokens + refill);
+        last = now;
+      }
+
+      if (tokens > 0) {
+        tokens--;
+        return;
+      }
+
+      await Bun.sleep(50);
+    }
+  };
+}
+
+function packResult(
+  announcements: announcementInfo[],
+  timeResults: Result<departureTimeRemaining>[],
+): BusRoutesResponse {
+  const times: Record<string, departureTimeRemaining> = {};
+  const errors: Record<string, Err["error"]> = {};
+
+  for (const r of timeResults) {
+    if (r.ok) times[normalizeBusCode(r.busCode)] = r.data;
+    else errors[normalizeBusCode(r.busCode)] = r.error;
+  }
+
+  const failed = Object.keys(errors).length;
+  const total = timeResults.length;
+  const success = total - failed;
+
+  return {
+    ok: failed === 0,
+    announcements,
+    times,
+    errors,
+    summary: { total, success, failed },
+  };
 }
 
 //------------------------------------------------------------------------------
@@ -363,22 +445,36 @@ app.post(("/bus/routes"), async (req: Request<{}, {}, unknown>, res: Response) =
     return res.status(400).json({error: "Bruh what 10!?"});
   }
 
-  try{
-    const [AllAnnouncements, departureTimes] = await Promise.all([
-      getRelevantAnnouncements(busCodes),
-      Promise.allSettled(busCodes.map((code) => fetchTimesForCodes(code)))
+  try {
+    const acquire = makeRateLimiter(10); // 10 SOAP calls started per second
+
+    const announcementTask = async () => {
+      await acquire();
+      return await getRelevantAnnouncements(busCodes);
+    };
+
+    const timesTask = async () => {
+      const tasks = busCodes.map((code) => async () => {
+        await acquire();              
+        return fetchTimesForCode(code);
+      });
+
+      return await Promise.all(tasks.map(fn => fn()));
+    };
+
+    const [announcements, timeResults] = await Promise.all([
+      announcementTask(),
+      timesTask(),
     ]);
 
-    //[TODO]: Do your magic
-    const results = {};
+    const packed = packResult(announcements, timeResults);
+    return res.json(packed);
 
-    return res.json( {results} );
-
-  } catch(error: unknown){
-      console.error("Server says: " + error);
-      if (!res.headersSent) {
-        res.status(500).send("SOAP request failed");
-      }
+  } catch (error: unknown) {
+    console.error("Server says:", error);
+    if (!res.headersSent) {
+      res.status(500).send("Request failed");
+    }
   }
 })
 
