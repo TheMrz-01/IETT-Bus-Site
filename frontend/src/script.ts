@@ -144,9 +144,14 @@ departureTimeBtnEl.addEventListener("click", async () => {
   } 
   */
 
-  try{
-    let busCodes = [...new Set(getBusCodesFromTable(busTableBody))];
+  let busCodes = [...new Set(getBusCodesFromTable(busTableBody))];
 
+  if(busCodes.length === 0){
+    alert("No bus codes provided");
+    return;
+  }
+
+  try{
     const response: Response = await fetch("/bus/routes", {
       method: "POST",
       headers: {
@@ -161,9 +166,9 @@ departureTimeBtnEl.addEventListener("click", async () => {
     }
 
     const data: unknown = await response.json();
-    console.log(data);
 
     //[TODO]: Display results
+
 
   } catch(error: unknown) {
     const message = error instanceof Error ? error.message : " was";

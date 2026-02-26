@@ -1,6 +1,5 @@
 //[TODO] Implement cache system
 //[TODO] Implement rate limit
-//[TODO] Get proper output
 import express, { type Request, type Response, type json } from "express";
 import cors, { type CorsOptions } from "cors";
 
@@ -8,7 +7,30 @@ type BusCodesBody = {
   busCodes: string[];
 };
 
+type announcementJson = {
+  HATKODU: string;
+  HAT: string;
+  TIP: "Günlük" | "Sefer" | string; 
+  GUNCELLEME_SAATI: string;        
+  MESAJ: string;
+};
+
 type IstanbulDatePart = "year" | "month" | "day" | "hour" | "minute" | "second";
+
+function isAnnouncementJsonArray(x: any): x is announcementJson[] {
+  return (
+    Array.isArray(x) &&
+    x.every((item: any) =>
+      item &&
+      typeof item === "object" &&
+      typeof item.HATKODU === "string" &&
+      typeof item.HAT === "string" &&
+      typeof item.TIP === "string" &&
+      typeof item.GUNCELLEME_SAATI === "string" &&
+      typeof item.MESAJ === "string"
+    )
+  );
+}
 
 function buildEnvelope(methodName: string, innerBody: string): string {
   return `<?xml version="1.0" encoding="utf-8"?>
@@ -157,6 +179,31 @@ function getCorrectTypeData(
   return correctTypeData;
 }
 
+async function fetchAllAnnouncements(): Promise<string>{
+  const response = callSoap(
+    "https://api.ibb.gov.tr/iett/UlasimDinamikVeri/Duyurular.asmx",
+    "GetDuyurular_json",
+    `` );
+  
+    return response;
+}
+
+function getRelevantAnnouncements(rawAllAnnnouncements: string, busCodes: string[]): announcementJson[]{
+  const jsonAllAnnouncements = xml2json(rawAllAnnnouncements,"GetDuyurular_jsonResult");
+
+  if (!isAnnouncementJsonArray(jsonAllAnnouncements)) {
+    return [];
+  }
+
+  const codeSet = new Set(busCodes.map(String));
+
+  const relevant = jsonAllAnnouncements.filter(item =>
+    busCodes.some(code => item.HATKODU.includes(code))
+  );
+
+  return relevant;  
+}
+
 //------------------------------------------------------------------------------
 
 const app = express();
@@ -171,14 +218,30 @@ app.post(("/bus/routes"), async (req: Request<{}, {}, unknown>, res: Response) =
     return res.status(400).send("Invalid request body");
   }
 
-  const busCodes = [...new Set(
+  const busCodes: string[] = [...new Set(
     req.body.busCodes.map((c) => c.trim().toUpperCase()).filter(Boolean)
   )];
 
+  if(busCodes.length === 0){
+    return res.status(400).json({error: "No bus codes provided"});
+  } if(busCodes.length > 10) {
+    return res.status(400).json({error: "Bruh what 10!?"});
+  }
+
   try{
-    busCodes.forEach((busCode) => {
-      console.log(busCode);
-    });
+    //[TODO]: Concorrunt upstream code
+    /*
+    const [AllAnnouncements, departureTimes] = Promise.all(
+
+    )
+    */
+
+    const rawAllAnnnouncements = await fetchAllAnnouncements();
+    
+    const messages = getRelevantAnnouncements(rawAllAnnnouncements, busCodes);
+
+    return res.send(xml2json(rawAllAnnnouncements,"GetDuyurular_jsonResult"));
+
   } catch(error: unknown){
       console.error("Server says: " + error);
       if (!res.headersSent) {
