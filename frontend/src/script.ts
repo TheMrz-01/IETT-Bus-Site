@@ -1,4 +1,8 @@
 //[TODO]: Add a toggle switch for different type of heading
+type Ok<T> = { ok: true; busCode: string; data: T };
+type Err = { ok: false; busCode: string; error: { message: string; status?: number; kind: string } };
+type Result<T> = Ok<T> | Err;
+
 type AnnouncementItem = {
   MESAJ?: string;
 };
@@ -10,7 +14,7 @@ type BusResponse = {
 };
 
 //TEMP TYPE
-type AnnouncementInfo = {
+type announcementInfo = {
   "HATKODU": string;
   "HAT": string;
   "TIP": "Günlük" | "Sefer" | string; 
@@ -18,9 +22,18 @@ type AnnouncementInfo = {
   "MESAJ": string;
 };
 
-type AnnouncementResponse = {
-  "announcements": AnnouncementInfo[]
+type departureTimeRemaining = {
+  timeRemaining: string;
+  secondTimeReamining: string;
 }
+
+type BusRoutesResponse = {
+  ok: boolean;
+  announcements: announcementInfo[];
+  times: Record<string, departureTimeRemaining>;
+  errors: Record<string, Err["error"]>;
+  summary: { total: number; success: number; failed: number };
+};
 
 function getBusCodesFromTable(body: HTMLTableSectionElement): string[] {
   return Array.from(body.rows)
@@ -55,27 +68,83 @@ const busTableBody = busTableEl.tBodies.item(0) ?? busTableEl.createTBody();
 const announcementTableBody =
   announcementTableEl.tBodies.item(0) ?? announcementTableEl.createTBody();
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function isAnnouncementInfo(value: unknown): value is AnnouncementInfo {
-  return (
-    isRecord(value) &&
-    typeof value.HATKODU === "string" &&
-    typeof value.MESAJ === "string"
-  );
-}
-function isAnnouncementResponse(value: unknown): value is AnnouncementResponse {
-  return (
-    isRecord(value) &&
-    Array.isArray(value.announcements) &&
-    value.announcements.every(isAnnouncementInfo)
-  );
-}
-
 function normalizeBusCode(value: string): string {
   return value.trim().toUpperCase();
+}
+
+function isBusRoutesResponse(value: unknown): value is BusRoutesResponse {
+  if (!isRecord(value)) return false;
+
+  if (typeof value.ok !== "boolean") return false;
+
+  if (!Array.isArray(value.announcements)) return false;
+  if (!value.announcements.every(isAnnouncementInfo)) return false;
+
+  if (!isRecord(value.times)) return false;
+  for (const [k, v] of Object.entries(value.times)) {
+    if (typeof k !== "string") return false; 
+    if (!isDepartureTimeRemaining(v)) return false;
+  }
+
+  if (!isRecord(value.errors)) return false;
+  for (const [k, v] of Object.entries(value.errors)) {
+    if (typeof k !== "string") return false;
+    if (!isErrErrorShape(v)) return false;
+  }
+
+  if (!isRecord(value.summary)) return false;
+  if (!isNonNegativeInt(value.summary.total)) return false;
+  if (!isNonNegativeInt(value.summary.success)) return false;
+  if (!isNonNegativeInt(value.summary.failed)) return false;
+
+  if (value.summary.total !== value.summary.success + value.summary.failed) return false;
+
+  if (Object.keys(value.times).length > value.summary.total) return false;
+  if (Object.keys(value.errors).length > value.summary.total) return false;
+
+  return true;
+}
+
+function isRecord(x: unknown): x is Record<string, unknown> {
+  return typeof x === "object" && x !== null;
+}
+
+function isNonNegativeInt(x: unknown): x is number {
+  return typeof x === "number" && Number.isInteger(x) && x >= 0;
+}
+
+function isAnnouncementInfo(x: unknown): x is announcementInfo {
+  if (!isRecord(x)) return false;
+
+  return (
+    typeof x.HATKODU === "string" &&
+    typeof x.HAT === "string" &&
+    typeof x.TIP === "string" &&
+    typeof x.GUNCELLEME_SAATI === "string" &&
+    typeof x.MESAJ === "string"
+  );
+}
+
+function isDepartureTimeRemaining(x: unknown): x is departureTimeRemaining {
+  if (!isRecord(x)) return false;
+
+  return (
+    typeof x.timeRemaining === "string" &&
+    typeof x.secondTimeReamining === "string"
+  );
+}
+
+function isErrErrorShape(x: unknown): x is Err["error"] {
+  if (!isRecord(x)) return false;
+
+  if (typeof x.message !== "string") return false;
+  if (typeof x.kind !== "string") return false;
+
+  if ("status" in x && x.status !== undefined) {
+    if (typeof x.status !== "number" || !Number.isFinite(x.status)) return false;
+  }
+
+  return true;
 }
 
 function createBusRow(busCode: string): HTMLTableRowElement {
@@ -168,6 +237,73 @@ busTableBody.addEventListener("click", (event) => {
   }
 });
 
+//----------------------------------------------------------------
+
+function updateBusTimesTable(resp: BusRoutesResponse): void {
+  for (const row of Array.from(busTableBody.rows)) {
+    const codeCell = row.cells.item(0);
+    const firstCell = row.cells.item(1);
+    const secondCell = row.cells.item(2);
+
+    if (!codeCell || !firstCell || !secondCell) continue;
+
+    const code = normalizeBusCode(codeCell.textContent ?? "");
+    if (!code) continue;
+
+    const t = resp.times[code];
+    const e = resp.errors[code];
+
+    if (t) {
+      firstCell.textContent = t.timeRemaining;
+      secondCell.textContent = t.secondTimeReamining;
+      firstCell.title = "";
+      secondCell.title = "";
+      continue;
+    }
+
+    if (e) {
+      // show something useful in the table for failures
+      firstCell.textContent = "ERR";
+      secondCell.textContent = "ERR";
+      firstCell.title = e.message;
+      secondCell.title = e.message;
+      continue;
+    }
+
+    // no data returned for this code (shouldn't happen if backend is correct)
+    firstCell.textContent = "-";
+    secondCell.textContent = "-";
+    firstCell.title = "No data";
+    secondCell.title = "No data";
+  }
+}
+
+function updateAnnouncementsTable(announcements: announcementInfo[]): void {
+  announcementTableBody.replaceChildren();
+
+  if (announcements.length === 0) {
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = 2;
+    cell.textContent = "Duyuru yok";
+    row.appendChild(cell);
+    announcementTableBody.appendChild(row);
+    return;
+  }
+
+  for (const item of announcements) {
+    const row = document.createElement("tr");
+    const busCodeCell = document.createElement("td");
+    const messageCell = document.createElement("td");
+
+    busCodeCell.textContent = normalizeBusCode(item.HATKODU);
+    messageCell.textContent = item.MESAJ;
+
+    row.append(busCodeCell, messageCell);
+    announcementTableBody.appendChild(row);
+  }
+}
+
 departureTimeBtnEl.addEventListener("click", async () => {
   //[TODO] Check the table
   /*
@@ -204,42 +340,16 @@ departureTimeBtnEl.addEventListener("click", async () => {
 
     const data: unknown = await response.json();
 
-    announcementTableBody.replaceChildren();
-
-    if (isAnnouncementResponse(data)) {
-      if (data.announcements.length === 0) {
-        const row = document.createElement("tr");
-        const cell = document.createElement("td");
-
-        cell.colSpan = 2;
-        cell.textContent = "Duyuru yok";
-
-        row.appendChild(cell);
-        announcementTableBody.appendChild(row);
-      } else {
-        data.announcements.forEach((item) => {
-          const row = document.createElement("tr");
-          const busCodeCell = document.createElement("td");
-          const messageCell = document.createElement("td");
-
-          busCodeCell.textContent = normalizeBusCode(item.HATKODU);
-          messageCell.textContent = item.MESAJ;
-
-          row.append(busCodeCell, messageCell);
-          announcementTableBody.appendChild(row);
-        });
-      }
-    } else {
-      const row = document.createElement("tr");
-      const cell = document.createElement("td");
-
-      cell.colSpan = 2;
-      cell.textContent = "Beklenmeyen duyuru formati";
-
-      row.appendChild(cell);
-
-      announcementTableBody.appendChild(row);
+    if (!isBusRoutesResponse(data)) {
+      throw new Error("Bad response shape");
     }
+
+    updateBusTimesTable(data);
+
+    updateAnnouncementsTable(data.announcements);
+
+    if(!isBusRoutesResponse(data))
+      throw new Error("Bad response shape");
 
   } catch(error: unknown) {
     const message = error instanceof Error ? error.message : " was";
