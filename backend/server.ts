@@ -1,5 +1,8 @@
 //[TODO] Implement cache system
 //[TODO] Implement rate limit
+//[TODO] Check the networking sizes
+//[TODO] I need optimizations ASAP
+//[TODO] Big ass clean up time. For example busCode set always gets normalized inside fns
 import express, { type Request, type Response, type json } from "express";
 import cors, { type CorsOptions } from "cors";
 
@@ -331,8 +334,12 @@ async function getRelevantAnnouncements(busCodes: string[]): Promise<announcemen
     return [];
   }
 
+  const normalize = (s: unknown) => String(s ?? "").trim().toUpperCase();
+
+  const busSet = new Set(busCodes.map(normalize));
+
   const relevant = jsonAllAnnouncements.filter(item =>
-    busCodes.some(code => item.HATKODU.includes(code))
+    busSet.has(normalize(item.HATKODU))
   );
 
   const relevantAnnouncements: announcementInfo[] = [];
