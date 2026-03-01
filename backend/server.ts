@@ -1,10 +1,24 @@
 //[TODO] Implement cache system
-//[TODO] Implement rate limit
+//[TODO] Implement Token Bucket
 //[TODO] Check the networking sizes
 //[TODO] I need optimizations ASAP
+//[TODO] Make the data type checks stricter for example check 4 duplicate bus codes
 //[TODO] Big ass clean up time. For example busCode set always gets normalized inside fns
-import express, { type Request, type Response, type json } from "express";
-import cors, { type CorsOptions } from "cors";
+import express from "express";
+import type { Request, Response, NextFunction, RequestHandler } from "express";
+import cors from "cors";
+
+type IncomingPacket = {
+  tokenSize: number;
+};
+
+type TokenBucket = {
+  bucketSize: number; //Bytes?
+  tokenNumber: number; //Bytes?
+  tokenGenerationRate: number; //Same
+  tokenConsumptionRule: number; //Geeked all day 4 dis omg bruhh
+  bucketQueue: IncomingPacket[];
+};
 
 type BusCodesBody = {
   busCodes: string[];
@@ -378,31 +392,6 @@ function indexAnnouncementsByCode( announcements: announcementInfo[], ):
   return map;
 }
 
-function makeRateLimiter(ratePerSec: number) {
-  let tokens = ratePerSec;
-  let last = Date.now();
-
-  return async function acquire() {
-    while (true) {
-      const now = Date.now();
-      const elapsed = now - last;
-
-      if (elapsed >= 1000) {
-        const refill = Math.floor(elapsed / 1000) * ratePerSec;
-        tokens = Math.min(ratePerSec, tokens + refill);
-        last = now;
-      }
-
-      if (tokens > 0) {
-        tokens--;
-        return;
-      }
-
-      await Bun.sleep(50);
-    }
-  };
-}
-
 function packResult(
   announcements: announcementInfo[],
   timeResults: Result<departureTimeRemaining>[],
@@ -428,6 +417,16 @@ function packResult(
   };
 }
 
+async function tokenBucketAlgorithm(tokenBucket: TokenBucket, incomingPacket: IncomingPacket){
+ //[TODO]: One overstimulations session later i am deeply embarressed of this code legit wtf was i smoking here
+ //#1 while true loop inside a async 
+ //#2 a globa bucket ??? wtf ??
+ //#3 no ip checking whatsoever
+ //#4 queue logic wrong check packet sizes before shifting one
+ //#5 lacks actual sleep function 
+ //I have decided to remove this code from existence no human being shall see this abomination and im again deeply ambarressed
+}
+
 //------------------------------------------------------------------------------
 
 const app = express();
@@ -436,6 +435,15 @@ app.use(cors());
 app.use(express.json())
 app.use(express.static("frontend"));
 app.use("/assets", express.static("assets"));
+
+//[TODO]: Write actual values
+const tokenBucket: TokenBucket = {
+  bucketSize: 10,
+  tokenNumber: 20,
+  tokenGenerationRate: 30,
+  tokenConsumptionRule: 30,
+  bucketQueue: []
+}
 
 app.post(("/bus/routes"), async (req: Request<{}, {}, unknown>, res: Response) => {
   if (!isBusCodesBody(req.body)) {
@@ -448,21 +456,23 @@ app.post(("/bus/routes"), async (req: Request<{}, {}, unknown>, res: Response) =
 
   if(busCodes.length === 0){
     return res.status(400).json({error: "No bus codes provided"});
-  } if(busCodes.length > 10) {
-    return res.status(400).json({error: "Bruh what 10!?"});
+  } if(busCodes.length > 5) {
+    return res.status(400).json({error: "Bruh what more than 5!?"});
   }
 
-  try {
-    const acquire = makeRateLimiter(10); // 10 SOAP calls started per second
+  const incomingPacket: IncomingPacket = {
+    tokenSize: busCodes.length
+  };
 
+  try {
     const announcementTask = async () => {
-      await acquire();
+      await tokenBucketAlgorithm(tokenBucket, incomingPacket);
       return await getRelevantAnnouncements(busCodes);
     };
 
     const timesTask = async () => {
       const tasks = busCodes.map((code) => async () => {
-        await acquire();              
+        await tokenBucketAlgorithm(tokenBucket, incomingPacket);
         return fetchTimesForCode(code);
       });
 
