@@ -118,6 +118,7 @@ function isDepartureTimeJson(value: unknown): value is departureTimesJson[] {
 }
 
 function buildEnvelope(methodName: string, innerBody: string): string {
+  //I legit have no idea why they allow this bruh
   return `<?xml version="1.0" encoding="utf-8"?>
   <soap:Envelope
       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -372,25 +373,8 @@ async function getRelevantAnnouncements(busCodes: string[]): Promise<announcemen
   return relevantAnnouncements;  
 }
 
-//[TODO]: Check these
 function normalizeBusCode(value: string): string {
   return value.trim().toUpperCase();
-}
-
-function indexAnnouncementsByCode( announcements: announcementInfo[], ): 
-    Map<string, announcementInfo[]> {
-  const map = new Map<string, announcementInfo[]>();
-  for (const item of announcements) {
-    const code = normalizeBusCode(item.HATKODU ?? "");
-
-    if (!code) continue;
-
-    const current = map.get(code) ?? [];
-
-    current.push(item);
-    map.set(code, current);
-  }
-  return map;
 }
 
 function packResult(
@@ -426,7 +410,7 @@ function createRouteTokenBucketLimiter(options: TokenBucketOptions): RequestHand
     costFn = () => 1,
     cleanupIdleMs = 10 * 60 * 1000,
   } = options;
-    
+
   if (capacity <= 0) throw new Error("capacity must be > 0 twin");
 
   if (refillPerSecond <= 0) throw new Error("refillPerSecond must be > 0 twan");
@@ -444,10 +428,13 @@ function createRouteTokenBucketLimiter(options: TokenBucketOptions): RequestHand
 
   cleanupTimer.unref?.();
 
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request<{}, {}, unknown>, res: Response, next: NextFunction) => {
 
     const now = Date.now();
     const key = keyFn(req);
+
+    console.log(key);
+
     const existing = buckets.get(key);
 
     const state: TokenBucketState =
@@ -468,6 +455,10 @@ function createRouteTokenBucketLimiter(options: TokenBucketOptions): RequestHand
     if (!Number.isFinite(cost) || cost <= 0) {
       return res.status(500).json({ error: "Invalid limiter cost configuration" });
     }
+
+    //Weird js floating point fuckery edge case plz ignore
+    if (state.tokens > capacity) state.tokens = capacity;
+    if (Math.abs(state.tokens) < 1e-9) state.tokens = 0;
 
     if (state.tokens < cost) {
       const missing = cost - state.tokens;

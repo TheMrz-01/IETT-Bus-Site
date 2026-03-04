@@ -1,7 +1,7 @@
 //[TODO]: Add a toggle switch for different type of heading
-type Ok<T> = { ok: true; busCode: string; data: T };
+
+//[TODO]: Could add ok type
 type Err = { ok: false; busCode: string; error: { message: string; status?: number; kind: string } };
-type Result<T> = Ok<T> | Err;
 
 type AnnouncementItem = {
   MESAJ?: string;
@@ -231,7 +231,6 @@ busTableBody.addEventListener("click", (event) => {
 
   if (row instanceof HTMLTableRowElement) {
     row.remove();
-    localStorage.removeItem("busCodes");
     const uniqueBusCodes = [...new Set(getBusCodesFromTable(busTableBody))];
     localStorage.setItem("busCodes", JSON.stringify(uniqueBusCodes))
   }
@@ -263,8 +262,8 @@ function updateBusTimesTable(resp: BusRoutesResponse): void {
 
     if (e) {
       // show something useful in the table for failures
-      firstCell.textContent = "ERR";
-      secondCell.textContent = "ERR";
+      firstCell.textContent = "No bussy bus bus";
+      secondCell.textContent = "No bussy bus bus";
       firstCell.title = e.message;
       secondCell.title = e.message;
       continue;
@@ -317,7 +316,7 @@ departureTimeBtnEl.addEventListener("click", async () => {
   } 
   */
 
-  let busCodes = [...new Set(getBusCodesFromTable(busTableBody))];
+  const busCodes = [...new Set(getBusCodesFromTable(busTableBody))];
 
   if(busCodes.length === 0){
     alert("No bus codes provided");
@@ -347,9 +346,6 @@ departureTimeBtnEl.addEventListener("click", async () => {
     updateBusTimesTable(data);
 
     updateAnnouncementsTable(data.announcements);
-
-    if(!isBusRoutesResponse(data))
-      throw new Error("Bad response shape");
 
   } catch(error: unknown) {
     const message = error instanceof Error ? error.message : " was";
@@ -393,6 +389,10 @@ const parsedBusCodes: string[] = savedBusCodes
   ? JSON.parse(savedBusCodes)
   : [];
 
-parsedBusCodes.forEach((busCode) => {
-  busTableBody.appendChild(createBusRow(busCode));
-});
+try{
+  parsedBusCodes.forEach((busCode) => {
+    busTableBody.appendChild(createBusRow(busCode));
+  });
+} catch(err: unknown) {
+  alert("Bruh wtf you mean")
+}
