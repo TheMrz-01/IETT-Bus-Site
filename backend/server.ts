@@ -8,16 +8,17 @@ import express from "express";
 import type { Request, Response, NextFunction, RequestHandler } from "express";
 import cors from "cors";
 
-type IncomingPacket = {
-  tokenSize: number;
+type TokenBucketState = {
+  tokens: number;      
+  lastRefillMs: number; 
+  lastSeenMs: number;   
 };
-
-type TokenBucket = {
-  bucketSize: number; //Bytes?
-  tokenNumber: number; //Bytes?
-  tokenGenerationRate: number; //Same
-  tokenConsumptionRule: number; //Geeked all day 4 dis omg bruhh
-  bucketQueue: IncomingPacket[];
+type TokenBucketOptions = {
+  capacity: number;          
+  refillPerSecond: number;   
+  keyFn?: (req: Request) => string;     
+  costFn?: (req: Request) => number;   
+  cleanupIdleMs?: number;    
 };
 
 type BusCodesBody = {
@@ -417,35 +418,90 @@ function packResult(
   };
 }
 
-async function tokenBucketAlgorithm(tokenBucket: TokenBucket, incomingPacket: IncomingPacket){
- //[TODO]: One overstimulations session later i am deeply embarressed of this code legit wtf was i smoking here
- //#1 while true loop inside a async 
- //#2 a globa bucket ??? wtf ??
- //#3 no ip checking whatsoever
- //#4 queue logic wrong check packet sizes before shifting one
- //#5 lacks actual sleep function 
- //I have decided to remove this code from existence no human being shall see this abomination and im again deeply ambarressed
+function createRouteTokenBucketLimiter(options: TokenBucketOptions): RequestHandler {
+  const {
+    capacity,
+    refillPerSecond,
+    keyFn = (req) => req.ip ?? "unknown",
+    costFn = () => 1,
+    cleanupIdleMs = 10 * 60 * 1000,
+  } = options;
+    
+  if (capacity <= 0) throw new Error("capacity must be > 0 twin");
+
+  if (refillPerSecond <= 0) throw new Error("refillPerSecond must be > 0 twan");
+
+  const buckets = new Map<string, TokenBucketState>();
+
+  const cleanupTimer = setInterval(() => {
+    const now = Date.now();
+    for (const [key, state] of buckets) {
+      if (now - state.lastSeenMs > cleanupIdleMs) {
+        buckets.delete(key);
+      }
+    }
+  }, Math.min(cleanupIdleMs, 60_000));
+
+  cleanupTimer.unref?.();
+
+  return (req: Request, res: Response, next: NextFunction) => {
+
+    const now = Date.now();
+    const key = keyFn(req);
+    const existing = buckets.get(key);
+
+    const state: TokenBucketState =
+      existing ?? { tokens: capacity, lastRefillMs: now, lastSeenMs: now };
+    state.lastSeenMs = now;
+
+    const elapsedMs = now - state.lastRefillMs;
+
+    if (elapsedMs > 0) {
+      const refill = (elapsedMs / 1000) * refillPerSecond;
+
+      state.tokens = Math.min(capacity, state.tokens + refill);
+      state.lastRefillMs = now;
+    }
+
+    const cost = costFn(req);
+
+    if (!Number.isFinite(cost) || cost <= 0) {
+      return res.status(500).json({ error: "Invalid limiter cost configuration" });
+    }
+
+    if (state.tokens < cost) {
+      const missing = cost - state.tokens;
+      const retryAfterSeconds = Math.ceil(missing / refillPerSecond);
+
+      res.setHeader("Retry-After", String(retryAfterSeconds));
+
+      return res.status(429).json({ error: "Too many requests" });
+    }
+
+    state.tokens -= cost;
+    buckets.set(key, state);
+
+    next();
+  };
 }
 
 //------------------------------------------------------------------------------
 
 const app = express();
 
+const busRoutesLimiter = createRouteTokenBucketLimiter({
+  capacity: 5,
+  refillPerSecond: 0.2,
+});
+
+//[TODO]: Might need to use this
+//app.set("trust proxy", 1);
 app.use(cors());
 app.use(express.json())
-app.use(express.static("frontend"));
 app.use("/assets", express.static("assets"));
+app.use(express.static("frontend"));
 
-//[TODO]: Write actual values
-const tokenBucket: TokenBucket = {
-  bucketSize: 10,
-  tokenNumber: 20,
-  tokenGenerationRate: 30,
-  tokenConsumptionRule: 30,
-  bucketQueue: []
-}
-
-app.post(("/bus/routes"), async (req: Request<{}, {}, unknown>, res: Response) => {
+app.post(("/bus/routes"), busRoutesLimiter, async (req: Request<{}, {}, unknown>, res: Response) => {
   if (!isBusCodesBody(req.body)) {
     return res.status(400).send("Invalid request body");
   }
@@ -460,19 +516,13 @@ app.post(("/bus/routes"), async (req: Request<{}, {}, unknown>, res: Response) =
     return res.status(400).json({error: "Bruh what more than 5!?"});
   }
 
-  const incomingPacket: IncomingPacket = {
-    tokenSize: busCodes.length
-  };
-
   try {
     const announcementTask = async () => {
-      await tokenBucketAlgorithm(tokenBucket, incomingPacket);
       return await getRelevantAnnouncements(busCodes);
     };
 
     const timesTask = async () => {
       const tasks = busCodes.map((code) => async () => {
-        await tokenBucketAlgorithm(tokenBucket, incomingPacket);
         return fetchTimesForCode(code);
       });
 
