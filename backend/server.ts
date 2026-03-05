@@ -21,6 +21,19 @@ type TokenBucketOptions = {
   cleanupIdleMs?: number;    
 };
 
+type UpstreamTask<T> = {
+  run: () => Promise<T>;
+  resolve: (value: T) => void;
+  reject: (reason?: unknown) => void;
+  enqueuedAtMs: number;
+};
+type UpstreamLeakyBucketOptions = {
+  leakRatePerSecond: number; 
+  maxQueueSize: number;      
+  maxConcurrent: number;     
+  maxQueueWaitMs: number;    
+};
+
 type BusCodesBody = {
   busCodes: string[];
 };
@@ -118,7 +131,7 @@ function isDepartureTimeJson(value: unknown): value is departureTimesJson[] {
 }
 
 function buildEnvelope(methodName: string, innerBody: string): string {
-  //I legit have no idea why they allow this bruh
+  //I legit have no idea why they
   return `<?xml version="1.0" encoding="utf-8"?>
   <soap:Envelope
       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -162,6 +175,14 @@ async function callSoap(url: string, methodName: string, innerBody: string): Pro
   }
 
   return await response.text();
+}
+
+async function callSoapLimited(
+  url: string,
+  methodName: string,
+  innerBody: string,
+): Promise<string> {
+  return upstreamLimiter.schedule(() => callSoap(url, methodName, innerBody));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -275,7 +296,7 @@ function getCorrectTypeData(
 
 async function fetchTimesForCode(busCode: string): Promise<Result<departureTimeRemaining>> {
   try {
-    const departureTimeText = await callSoap(
+    const departureTimeText = await callSoapLimited(
       "https://api.ibb.gov.tr/iett/UlasimAnaVeri/PlanlananSeferSaati.asmx",
       "GetPlanlananSeferSaati_json",
       `<HatKodu>${busCode}</HatKodu>`
@@ -334,7 +355,7 @@ async function fetchTimesForCode(busCode: string): Promise<Result<departureTimeR
 }
 
 async function fetchAllAnnouncements(): Promise<string>{
-  const response = callSoap(
+  const response = callSoapLimited(
     "https://api.ibb.gov.tr/iett/UlasimDinamikVeri/Duyurular.asmx",
     "GetDuyurular_json",
     `` );
@@ -476,6 +497,124 @@ function createRouteTokenBucketLimiter(options: TokenBucketOptions): RequestHand
   };
 }
 
+function createUpstreamLeakyBucket(options: UpstreamLeakyBucketOptions) {
+  const {
+    leakRatePerSecond,
+    maxQueueSize,
+    maxConcurrent,
+    maxQueueWaitMs,
+  } = options;
+
+  if (leakRatePerSecond <= 0) throw new Error("leakRatePerSecond must be > 0 twralala");
+  if (maxQueueSize <= 0) throw new Error("maxQueueSize must be > 0 twilollo");
+  if (maxConcurrent <= 0) throw new Error("maxConcurrent must be > 0 twinkies");  
+  if (maxQueueWaitMs <= 0) throw new Error("maxQueueWaitMs must be > 0 twinky");
+
+  const leakIntervalMs = 1000 / leakRatePerSecond;
+  const queue: UpstreamTask<unknown>[] = [];
+  let inFlight = 0;
+  let nextStartMs = Date.now() - leakIntervalMs;
+
+  let pumpTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function makeLimiterError(message: string, status: number, kind: string): Error {
+    const err = new Error(message);
+
+    (err as Error & { status?: number; kind?: string }).status = status;
+    (err as Error & { status?: number; kind?: string }).kind = kind;
+
+    return err;
+  }
+
+  function schedulePump(delayMs: number): void {
+    if (pumpTimer !== null) return;
+
+    pumpTimer = setTimeout(() => {
+      pumpTimer = null;
+      pump();
+    }, Math.max(0, delayMs));
+
+  }
+
+  function expireStaleQueuedTasks(now: number): void {
+    
+    while (queue.length > 0) {
+      const head = queue[0];
+
+      if (!head) break;
+      if (now - head.enqueuedAtMs <= maxQueueWaitMs) break;
+
+      queue.shift();
+
+      head.reject(
+        makeLimiterError("Upstream queue timeout", 503, "upstream_queue_timeout"),
+      );
+    }
+  }
+
+  function pump(): void {
+    const now = Date.now();
+
+    expireStaleQueuedTasks(now);
+
+    while (inFlight < maxConcurrent && queue.length > 0) {
+
+      const currentNow = Date.now();
+      const waitMs = nextStartMs - currentNow;
+
+      if (waitMs > 0) {
+        schedulePump(waitMs);
+        return;
+      }
+
+      const task = queue.shift();
+
+      if (!task) return;
+
+      nextStartMs = Math.max(nextStartMs, currentNow) + leakIntervalMs;
+      inFlight += 1;
+
+      task
+        .run()
+        .then(task.resolve)
+        .catch(task.reject)
+        .finally(() => {
+          inFlight -= 1;
+          pump();
+        });
+    }
+  }
+
+  function schedule<T>(run: () => Promise<T>): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      if (queue.length >= maxQueueSize) {
+        reject(makeLimiterError("Upstream queue full", 503, "upstream_queue_full"));
+        return;
+      }
+
+      const wrappedTask: UpstreamTask<T> = {
+        run,
+        resolve,
+        reject,
+        enqueuedAtMs: Date.now(),
+      };
+
+      queue.push(wrappedTask as UpstreamTask<unknown>);
+      pump();
+    });
+  }
+
+  function stats() {
+    return {
+      queueLength: queue.length,
+      inFlight,
+      leakIntervalMs,
+      nextStartMs,
+    };
+  }
+
+  return { schedule, stats };
+}
 //------------------------------------------------------------------------------
 
 const app = express();
@@ -483,6 +622,13 @@ const app = express();
 const busRoutesLimiter = createRouteTokenBucketLimiter({
   capacity: 5,
   refillPerSecond: 0.2,
+});
+
+const upstreamLimiter = createUpstreamLeakyBucket({
+  leakRatePerSecond: 8, 
+  maxQueueSize: 200,    
+  maxConcurrent: 3,     
+  maxQueueWaitMs: 8000, // drop if stuck in queue too long
 });
 
 //[TODO]: Might need to use this
