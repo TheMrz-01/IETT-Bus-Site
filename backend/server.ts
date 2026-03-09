@@ -4,6 +4,7 @@
 //[TODO] I need optimizations ASAP
 //[TODO] Make the data type checks stricter for example check 4 duplicate bus codes
 //[TODO] Big ass clean up time. For example busCode set always gets normalized inside fns
+//[TODO] Is gunu cumartesi pazar turlerini suanki tarihe gore gec
 import express from "express";
 import type { Request, Response, NextFunction, RequestHandler } from "express";
 import cors from "cors";
@@ -497,6 +498,8 @@ function createRouteTokenBucketLimiter(options: TokenBucketOptions): RequestHand
   };
 }
 
+//----------------------------------------------------------------------
+
 function createUpstreamLeakyBucket(options: UpstreamLeakyBucketOptions) {
   const {
     leakRatePerSecond,
@@ -533,11 +536,9 @@ function createUpstreamLeakyBucket(options: UpstreamLeakyBucketOptions) {
       pumpTimer = null;
       pump();
     }, Math.max(0, delayMs));
-
   }
 
   function expireStaleQueuedTasks(now: number): void {
-    
     while (queue.length > 0) {
       const head = queue[0];
 
@@ -619,6 +620,11 @@ function createUpstreamLeakyBucket(options: UpstreamLeakyBucketOptions) {
 
 const app = express();
 
+const healthLimiter =   createRouteTokenBucketLimiter({
+  capacity: 10,
+  refillPerSecond: 0.25,
+})
+
 const busRoutesLimiter = createRouteTokenBucketLimiter({
   capacity: 5,
   refillPerSecond: 0.2,
@@ -631,12 +637,18 @@ const upstreamLimiter = createUpstreamLeakyBucket({
   maxQueueWaitMs: 8000, // drop if stuck in queue too long
 });
 
-//[TODO]: Might need to use this
-//app.set("trust proxy", 1);
+//[CAUTION]: Might need to delete this
+app.set("trust proxy", 1);
 app.use(cors());
 app.use(express.json())
 app.use("/assets", express.static("assets"));
 app.use(express.static("frontend"));
+
+app.get("/health", healthLimiter, (req,res) => { 
+  return res.json({
+    "status": "Chain ain't snatched twin"
+  });
+})
 
 app.post(("/bus/routes"), busRoutesLimiter, async (req: Request<{}, {}, unknown>, res: Response) => {
   if (!isBusCodesBody(req.body)) {
