@@ -649,7 +649,17 @@ app.get("/health", healthLimiter, (req,res) => {
 })
 
 app.get("/ping", (req, res) => {
-  res.json({ ok: true, now: Date.now() });
+  res.json({
+    ok: true,
+    now: Date.now(),
+    ip: req.ip,
+    ips: req.ips,
+    socketRemoteAddress: req.socket.remoteAddress,
+    xForwardedFor: req.headers["x-forwarded-for"],
+    xRealIp: req.headers["x-real-ip"],
+    cfConnectingIp: req.headers["cf-connecting-ip"],
+    xForwardedProto: req.headers["x-forwarded-proto"],
+  });
 });
 
 app.post(("/otobus/routes"), busRoutesLimiter, async (req: Request<{}, {}, unknown>, res: Response) => {
