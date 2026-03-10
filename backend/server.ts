@@ -1,5 +1,4 @@
 //[TODO] Implement cache system
-//[TODO] Implement Token Bucket
 //[TODO] Check the networking sizes
 //[TODO] I need optimizations ASAP
 //[TODO] Make the data type checks stricter for example check 4 duplicate bus codes
@@ -454,8 +453,6 @@ function createRouteTokenBucketLimiter(options: TokenBucketOptions): RequestHand
 
     const now = Date.now();
     const key = keyFn(req);
-
-    console.log(key);
 
     const existing = buckets.get(key);
 
