@@ -324,7 +324,7 @@ departureTimeBtnEl.addEventListener("click", async () => {
   }
 
   try{
-    const response: Response = await fetch("/bus/routes", {
+    const response: Response = await fetch("/otobus/routes", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

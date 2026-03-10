@@ -639,7 +639,7 @@ app.set("trust proxy", 1);
 app.use(cors());
 app.use(express.json())
 app.use("/assets", express.static("assets"));
-app.use(express.static("frontend"));
+app.use("/otobus",express.static("frontend"));
 
 app.get("/health", healthLimiter, (req,res) => { 
   return res.json({
@@ -647,7 +647,11 @@ app.get("/health", healthLimiter, (req,res) => {
   });
 })
 
-app.post(("/bus/routes"), busRoutesLimiter, async (req: Request<{}, {}, unknown>, res: Response) => {
+app.get("/ping", (req, res) => {
+  res.json({ ok: true, now: Date.now() });
+});
+
+app.post(("/otobus/routes"), busRoutesLimiter, async (req: Request<{}, {}, unknown>, res: Response) => {
   if (!isBusCodesBody(req.body)) {
     return res.status(400).send("Invalid request body");
   }
