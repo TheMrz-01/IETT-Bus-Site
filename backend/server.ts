@@ -140,8 +140,8 @@ function buildEnvelope(methodName: string, innerBody: string): string {
       
     <soap:Header>
       <AuthHeader xmlns="http://tempuri.org/">
-        <Username>YOUR_USERNAME</Username>
-        <Password>YOUR_PASSWORD</Password>
+        <Username>user</Username>
+        <Password>pass</Password>
       </AuthHeader>
     </soap:Header>
 
