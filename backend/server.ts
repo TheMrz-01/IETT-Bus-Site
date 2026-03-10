@@ -640,7 +640,7 @@ app.set("trust proxy", 1);
 app.use(cors());
 app.use(express.json())
 app.use("/assets", express.static("assets"));
-app.use("/otobus",express.static("frontend"));
+app.use("/",express.static("frontend"));
 
 app.get("/health", healthLimiter, (req,res) => { 
   return res.json({
