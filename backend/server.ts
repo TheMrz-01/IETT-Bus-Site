@@ -613,6 +613,7 @@ function createUpstreamLeakyBucket(options: UpstreamLeakyBucketOptions) {
 
   return { schedule, stats };
 }
+
 //------------------------------------------------------------------------------
 
 const app = express();
@@ -630,7 +631,7 @@ const busRoutesLimiter = createRouteTokenBucketLimiter({
 const upstreamLimiter = createUpstreamLeakyBucket({
   leakRatePerSecond: 8, 
   maxQueueSize: 200,    
-  maxConcurrent: 3,     
+  maxConcurrent: 5,     
   maxQueueWaitMs: 8000, // drop if stuck in queue too long
 });
 
@@ -777,8 +778,9 @@ app.get("/bus/:hatKodu", async (req, res) => {
 })
 */
 
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT || 3001);
+const HOST = process.env.HOST || "127.0.0.1";
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`Server running at http://${HOST}:${PORT}`);
 });
