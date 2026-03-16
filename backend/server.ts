@@ -1,9 +1,15 @@
 //[TODO] Implement cache system
-//[TODO] Check the networking sizes
+//[TODO] Check the networking sizes 
 //[TODO] I need optimizations ASAP
 //[TODO] Make the data type checks stricter for example check 4 duplicate bus codes
 //[TODO] Big ass clean up time. For example busCode set always gets normalized inside fns
 //[TODO] Is gunu cumartesi pazar turlerini suanki tarihe gore gec
+
+/* !!!!!!!!!!!!!!!!!!
+* BIG ASS TODO: Rewrite the response type so it features timestamp of server time + includes HATYONU, HATADI, GUZERGAH_ISARETI;
+* NOT PRECOMPUTED DEPARTURE TIME, THE ABSOLUTE ONE let the client compute remaing time.
+*/
+
 import express from "express";
 import type { Request, Response, NextFunction, RequestHandler } from "express";
 import cors from "cors";
@@ -256,6 +262,7 @@ function getTimeDifference(time: Date, timeNow: Date): string{
 }
 
 function isBusCodesBody(value: unknown): value is BusCodesBody {
+// TODO: Add 
   return (
     typeof value === "object" &&
     value !== null &&

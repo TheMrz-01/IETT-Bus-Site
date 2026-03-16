@@ -11,14 +11,68 @@ html{
 }
 
 :root {
-    --table-width: min(96vw, 980px);
+    --controller-width: min(96vw, 980px);
     --control-height: 60px;
 }
 
 body {
     font-family: Arial, sans-serif;
-    margin: 0;
+    margin: 0;  
     padding: 0.5rem;
+}
+
+@media (max-width: 700px) {
+    .controls {
+        gap: 8px;
+    }
+
+    .addBusList {
+        min-width: 104px;
+        width: clamp(104px, 30vw, 142px);
+        flex-basis: clamp(104px, 30vw, 142px);
+    }
+}
+
+@media (max-width: 560px) {
+    :root {
+        --control-height: 52px;
+    }
+
+    .controls .busCodeInput {
+        font-size: 0.92rem;
+        padding: 8px 12px;
+    }
+
+    .addBusList {
+        min-width: 96px;
+        width: clamp(96px, 28vw, 120px);
+        flex-basis: clamp(96px, 28vw, 120px);
+        padding: 8px 10px;
+        font-size: 0.82rem;
+    }
+}
+
+@media (max-width: 420px) {
+    :root {
+        --control-height: 48px;
+    }
+
+    .controls {
+        gap: 6px;
+    }
+
+    .controls .busCodeInput {
+        font-size: 0.88rem;
+        padding: 8px 10px;
+    }
+
+    .addBusList {
+        min-width: 86px;
+        width: clamp(86px, 26vw, 106px);
+        flex-basis: clamp(86px, 26vw, 106px);
+        padding: 7px 8px;
+        font-size: 0.76rem;
+    }
 }
 
 h1 {
@@ -32,11 +86,21 @@ h1 {
     word-wrap: normal;  
 }
 
+p {
+    color: #4CAF50;
+    font-size: clamp(0.1rem,1rem);
+    font-weight: 900;
+    margin: 35px auto;
+    padding: 10px;
+    text-align: center;
+    word-wrap: break-word;
+}
+
 h2 {
     color: #4CAF50;
-    font-size: clamp(1.75rem, 5vw + 1rem, 4rem);
+    font-size: clamp(1.9rem, 1.8vw + 1rem, 3.2rem);
     font-weight: 900;
-    margin: auto, auto;
+    margin: 20px 20px;
     padding: clamp(10px, 3vw, 20px);
     text-align: center;
     line-height: 1.2;
@@ -49,15 +113,16 @@ h2 {
 }
 
 .controls {
-    width: var(--table-width);
+    width: var(--controller-width);
     margin: clamp(14px, 3vw, 30px) auto clamp(10px, 2vw, 18px);
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: clamp(8px, 1.6vw, 16px);
 }
 
 .controls .busCodeInput {
-    font-size: clamp(1rem, 3vw + 0.5rem, 1.25rem);
+    font-size: clamp(0.95rem, 0.6vw + 0.8rem, 1.1rem);
     font-weight: 700;
 
     text-align: center;
@@ -72,11 +137,15 @@ h2 {
 
     padding: clamp(8px, 2vw, 14px) clamp(16px, 4vw, 75px);
     margin: 0;
+
     min-height: var(--control-height);
     height: var(--control-height);
+
     min-width: 0;
     width: auto;
+
     flex: 1 1 auto;
+
     box-sizing: border-box;
 }
 
@@ -88,7 +157,7 @@ h2 {
     justify-content: center;
     align-items: center;
 
-    font-size: clamp(1rem, 3vw + 0.5rem, 3rem);
+    font-size: clamp(0.95rem, 0.5vw + 0.85rem, 1.1rem);
     font-weight: 900;
 
     color: #f2f2f2;
@@ -99,13 +168,13 @@ h2 {
     border-radius: clamp(5px, 1.5vw, 9px);
     border-color: #45a248;
 
-    margin: clamp(10px, 5vw, 50px) auto;
-    padding: clamp(6px, 1vw, 18px) clamp(24px, 4vw, 50px);
+    margin: 16px auto;
+    padding: 10px 20px;
 
     min-height: 44px;
-    height: auto; 
+    height: auto;
     min-width: 68px;
-    width: min(90%, 520px);
+    width: auto;
 
     white-space: normal;
     text-align: center;
@@ -127,177 +196,132 @@ h2 {
     box-shadow: 0 2px 4px #00000033;
 }
 
-.busTableBtn {
+.addBusList {
     margin: 0;
-    padding: clamp(7px, 1vw, 14px) clamp(14px, 2vw, 26px);
+    padding: 10px 16px;
 
-    font-size: clamp(1.05rem, 0.9vw + 0.75rem, 1.35rem);
+    font-size: clamp(0.9rem, 0.35vw + 0.82rem, 1rem);
     font-weight: 900;
 
     min-height: var(--control-height);
     height: var(--control-height);
-    min-width: 180px;
-    width: clamp(180px, 24vw, 270px);
-    flex: 0 0 clamp(180px, 24vw, 270px);
-    white-space: nowrap;
+
+    min-width: 0;
+
+    width: clamp(116px, 15vw, 168px);
+    flex: 0 1 clamp(116px, 15vw, 168px);
+    white-space: normal;
+    line-height: 1.1;
 }
 
-.busTable {
-    width: var(--table-width);
-    margin: clamp(14px, 3vw, 30px) auto clamp(18px, 4vw, 40px);
-    border-collapse: separate;
-    border-spacing: 0;
-    border: 1px solid #77b885;
-    border-radius: 9px;
-    overflow: hidden;
-    box-shadow: 0 10px 24px #2e7d3222;
-    background: #f7fbf8;
+@media (max-width: 280px) {
+    :root {
+        --control-height: 44px;
+    }
+
+    .controls {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+    }
+
+    .controls .busCodeInput,
+    .addBusList {
+        width: 100%;
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .controls .busCodeInput {
+        padding: 7px 8px;
+        font-size: 0.82rem;
+    }
+
+    .addBusList {
+        min-height: 44px;
+        height: 44px;
+        padding: 6px 8px;
+        font-size: 0.72rem;
+    }
 }
 
-.busTable th {
-    background: linear-gradient(180deg, #4CAF50 0%, #3f9e45 100%);
-    color: #ffffff;
-    font-size: clamp(0.95rem, 1.1vw + 0.6rem, 1.2rem);
-    font-weight: 800;
-    letter-spacing: 0.01em;
-    padding: clamp(10px, 1.8vw, 14px) clamp(12px, 2vw, 18px);
-    border-bottom: 1px solid #63ac6e;
-    text-align: left;
-    white-space: nowrap;
+.busListWrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
-.busTable td {
-    color: #2f4634;
-    font-size: clamp(0.95rem, 1vw + 0.65rem, 1.12rem);
-    font-weight: 600;
-    padding: clamp(9px, 1.6vw, 13px) clamp(12px, 2vw, 18px);
-    border-bottom: 1px solid #d8e9dc;
-    text-align: left;
-}
+.busList {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
 
-.busTable .colAction,
-.busTable .cellAction {
-    width: 76px;
     text-align: center;
+    list-style: none;
+
+    margin: clamp() auto;
+    padding: 0;
+
+    width: var(--controller-width);
+    gap: clamp(0.5rem, 2vw, 2rem);
+
+    text-decoration: none;
 }
 
-.rowRemoveBtn {
-    width: 34px;
-    height: 34px;
-    border: 1px solid #4caf50;
-    border-radius: 999px;
-    background-color: #e7f4ea;
-    color: #2f7b36;
-    font-size: 1.2rem;
-    font-weight: 900;
-    line-height: 1;
+.busList button li {
+    min-width: 48px;
+}
+
+.busList button {
+    border: 1px solid #77b885;
+    border-radius: 12px;
+    background: #f4faf5;
+    color: #2f4634;
+
     cursor: pointer;
-    transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+
+    text-align: center;
+
+    width: clamp(4.5rem, 7vw, 7rem);
+    height: auto;
+
+    padding: 9px 12px;
+
+    font-size: clamp(0.95rem, 0.4vw + 0.85rem, 1.05rem);
+    font-weight: 800;
 }
 
-.rowRemoveBtn:hover {
-    background-color: #4caf50;
-    color: #ffffff;
-    transform: translateY(-1px);
+.busList button:hover {
+  background: #e6f4e8;
 }
 
-.rowRemoveBtn:active {
+.busList button:active {
+    color: #f2f2f2;
+    background-color: #388E3C;
+    border-color: #2E7D32;
     transform: translateY(0);
+    box-shadow: 0 2px 4px #00000033;
 }
 
-.busTable tr:nth-child(even) {
-    background-color: #eef6f0;
-}
-
-.busTable tr:hover {
-    background-color: #e0f0e4;
-}
-
-.busTable tr:last-child td {
-    border-bottom: none;
+.busList button.is_active {
+  background: linear-gradient(180deg, #4caf50 0%, #3f9e45 100%);
+  color: white;
+  border-color: #3f9e45;
+  box-shadow: 0 8px 20px #2e7d3222;
 }
 
 @media (max-width: 700px) {
-    .controls {
-        gap: 10px;
+    .busList {
+        justify-content: center;
+        gap: 0.55rem;
     }
 
-    .busTableBtn {
-        min-width: 150px;
-        width: clamp(150px, 33vw, 190px);
-        flex-basis: clamp(150px, 33vw, 190px);
+    .busList button {
+        width: clamp(4rem, 22vw, 5.5rem);
+        padding: 8px 10px;
+        font-size: clamp(0.85rem, 1vw + 0.55rem, 0.98rem);
     }
 }
 
-p {
-    color: #4CAF50;
-    font-size: clamp(1rem, 2.5vw + 0.5rem, 1.5rem);
-    font-weight: 900;
-    margin: auto;
-    padding: 10px;
-    text-align: center;
-    word-wrap: break-word;
-}
 
-p {
-    font-size: clamp(1.125rem, 3vw + 0.5rem, 2.625rem);
-}
-
-.departureTimeText {
-    font-size: clamp(1.125rem, 3vw + 0.5rem, 2.625rem);
-}
-
-.timeContainer {
-    margin-top: 50px;
-    margin-bottom: 50px;
-    display: grid;
-    grid-template-columns: 2fr 2fr; 
-    text-align: center;
-    justify-content: center;
-    gap: 5px 40px; 
-}
-
-.announcementTable {
-    width: var(--table-width);
-    margin: clamp(14px, 3vw, 30px) auto clamp(18px, 4vw, 40px);
-    border-collapse: separate;
-    border-spacing: 0;
-    border: 1px solid #77b885;
-    border-radius: 9px;
-    overflow: hidden;
-    box-shadow: 0 10px 24px #2e7d3222;
-    background: #f7fbf8;
-}
-
-.announcementTable th {
-    background: linear-gradient(180deg, #4CAF50 0%, #3f9e45 100%);
-    color: #ffffff;
-    font-size: clamp(0.95rem, 1.1vw + 0.6rem, 1.2rem);
-    font-weight: 800;
-    letter-spacing: 0.01em;
-    padding: clamp(10px, 1.8vw, 14px) clamp(12px, 2vw, 18px);
-    border-bottom: 1px solid #63ac6e;
-    text-align: left;
-    white-space: nowrap;
-}
-
-.announcementTable td {
-    color: #2f4634;
-    font-size: clamp(0.95rem, 1vw + 0.65rem, 1.12rem);
-    font-weight: 600;
-    padding: clamp(9px, 1.6vw, 13px) clamp(12px, 2vw, 18px);
-    border-bottom: 1px solid #d8e9dc;
-    text-align: left;
-}
-
-.announcementTable tr:nth-child(even) {
-    background-color: #eef6f0;
-}
-
-.announcementTable tr:hover {
-    background-color: #e0f0e4;
-}
-
-.announcementTable tr:last-child td {
-    border-bottom: none;
-}
