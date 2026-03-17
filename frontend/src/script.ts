@@ -36,20 +36,25 @@ type BusRoutesResponse = {
   summary: { total: number; success: number; failed: number };
 };
 
-// TODO: get bus codes from list
-
 // TODO: Add the remaining elements
-const busCodeInput = document.getElementById("busCodeInput");
-const addBusList = document.getElementById("addBusList");
-const busList = document.querySelector(".busListWrapper");
+const _busCodeInput = document.getElementById("busCodeInput");
+const _addBusList = document.getElementById("addBusList");
+const _busList = document.querySelector(".busListWrapper .busList");
+const _dataPanel = document.getElementById("dataPanel");
 
 if (
-  !(busCodeInput instanceof HTMLInputElement) ||
-  !(addBusList instanceof HTMLButtonElement) ||
-  !(busList instanceof HTMLDivElement) 
+  !(_busCodeInput instanceof HTMLInputElement) ||
+  !(_addBusList instanceof HTMLButtonElement) ||
+  !(_busList instanceof HTMLUListElement) ||
+  !(_dataPanel instanceof HTMLDivElement)
 ) {
   throw new Error("Required DOM elements were not found");
 }
+
+const busCodeInput = _busCodeInput;
+const addBusList = _addBusList;
+const busList = _busList;
+const dataPanel = _dataPanel;
 
 function normalizeBusCode(value: string): string {
   return value.trim().toUpperCase();
@@ -131,24 +136,135 @@ function isErrErrorShape(x: unknown): x is Err["error"] {
   return true;
 }
 
+function getListBusCodes(){
+  if(busList instanceof HTMLUListElement){
+    return Array.from(busList.querySelectorAll("li"))
+      .map((li) =>
+        normalizeBusCode(li.textContent) ?? "");
+  }
+}
+
+function updateBusList(busCodes: unknown){
+  /*
+  if(busCodeInput instanceof HTMLInputElement ){
+    const li = document.createElement("li");
+    li.className = "busCode";
+    li.id = busCode;
+
+    const button = document.createElement("button");
+    button.className = "busListButton";
+    button.textContent = busCode;
+
+    li.appendChild(button);
+
+    const busList = document.getElementById("busList") as HTMLUListElement;
+    busList.appendChild(li);
+  }
+  */
+}
+
+function showDataPanel() {
+  if(!dataPanel) { console.log("Where panel??"); return; }
+
+  dataPanel.hidden = false;
+}
+
+function hideDataPanel() {
+  if(!dataPanel) { console.log("Where panel??"); return; }
+
+  dataPanel.hidden = true;
+}
+
+// TODO: Add everything into local storage
 function addBusToList() {
 
+  const busCodes = getListBusCodes();
+  if(!(busCodes instanceof Array) || busCodes.length >= 5) { alert("No more bussy bus bus than 5"); return; }
+
+  if(busCodeInput instanceof HTMLInputElement){
+    const busCode = normalizeBusCode(busCodeInput.value) ?? "";
+    busCodeInput.value = "";
+    busCodeInput.focus();
+
+    console.log(busCodes);
+    if(busCodes.includes(busCode)) { alert("This bus code is already included in the list twin"); return; }
+    if(busCode === "") { alert("Input bus code not cool twin"); return; }
+
+    const li = document.createElement("li");
+    li.className = "busCode";
+    li.id = busCode;
+
+    const button = document.createElement("button");
+    button.className = "busListButton";
+    button.textContent = busCode;
+
+    li.appendChild(button);
+
+    busList.appendChild(li);
+
+    const updatedBusCodes = [...new Set(getListBusCodes())];
+
+    localStorage.setItem("busCodes", JSON.stringify(updatedBusCodes));
+  }
 }
 
-// TODO: Display different tabs
-function displayBusTab() {
+function renderData(busCode: string) {
+  if(!dataPanel) { console.log("Where panel??"); return; }
+
+  // TODO: sudo rm -rf /
+  if(dataPanel.hidden == true){
+    showDataPanel();
+  } else {
+    hideDataPanel();
+  }
+}
+
+async function fetchData() {
 
 }
+
+/* ------------------------------------
+* Actual shi section ------------------
+*/
+
+// run on DOM Load
+window.addEventListener("DOMContentLoaded", async () => {
+  // TODO: Set the list from the local storage
+  // TODO: POST to server
+});
+
+busCodeInput.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") {
+    return;
+  }
+
+  event.preventDefault();
+  addBusToList();
+});
+
+busCodeInput.addEventListener("input", () => {
+  busCodeInput.value = normalizeBusCode(busCodeInput.value);
+});
+
+addBusList.addEventListener("keydown", (event) => {
+  addBusToList();
+})
+
+addBusList.addEventListener("click", () => {
+  addBusToList();
+})
 
 busList.addEventListener("click", (event) => {
-  const target = event.target as HTMLElement;
-  const button = target.closest("#busListButton");
+  const target = event.target as HTMLLIElement;
+  const button = target.closest(".busCode");
 
   if (!button) return;
 
+  const busCode = button.id;
+  if (!busCode) return;
+  
+  renderData(busCode);
 })
-
-// TODO: add buses to list from input
 
 //----------------------------------------------------------------
 // TODO: POST /bus/routes logic handeling here 

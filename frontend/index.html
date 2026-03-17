@@ -14,25 +14,55 @@
 
     <div class="container">
         <div class="controls">
-            <input type="text" class="busCodeInput" id="busCodeInput" placeholder="Hat Kodu Örn: 25Y"> 
+            <input type="text" class="busCodeInput" id="busCodeInput" placeholder="Hat Kodu Örn: 25Y" uppercase> 
 
             <button class="btn addBusList" id="addBusList">Otobüs ekle</button>
         </div>
 
+        <div>
         <h2> Otbüs listesi</h2>
+
+        <!-- Fetch button -->
+        <div class="fetchControls">
+            <p class="fetchText">Saatleri Güncelle</p>
+            <img class="fetchBtn" src="/../../assets/fetch.png" width="20px" height="20px" alt="Saatleri güncelle"> 
+        </div>
 
         <div class="busListWrapper" id="busListWrapper">
             <ul class="busList" id="busList">
-                <button class="" id="busListButton"><li>25Y</li></button>
-                <button class="" id="busListButton"><li>59HS</li></button>
-                <button class="" id="busListButton"><li>500T</li></button>
-                <button class="" id="busListButton"><li>HM3</li></button>
-                <button class="" id="busListButton"><li>76</li></button>
             </ul>
         </div>
 
-        <div class="dataPanel" id="dataPanel">
+        
+        <div class="dataPanel" id="dataPanel" hidden>
             <p>Select or add a bus into the bus list</p>
+
+            <button class="btn removeBus" id="removeBus">Otobüsü çıkar</button>
+
+            <!-- I need to climb a big stone rn -->
+
+            <div class="directionControl">
+                <p class="gidis">Haciosman</p>
+                <img class="changeDirection"src="/../../assets/changeDirection.png" width="20px" height="20px" alt="Yon degistir">
+                <p class="gelis">Yeni Uyum</p>
+            </div>
+
+            <div class="remainingTime">
+                <p>En Yakın Birinci Kalkış: </p>
+                <p>En Yakın İkinci Kalkış: </p>
+            </div>
+
+            <div class="announcements">
+                <h3>Duyurular</h3>
+                <p>Bla bla bla lorem ipsum</p>
+            </div>
+
+            <div class="timeTable">
+                <h3>Saatler</h3>
+                <div class="workDays"> <p>Hafta İçi</p> <ul id="times"></ul></div>
+                <div class="saturday"> <p>Cumartesi</p> <ul id="times"></ul></div>
+                <div class="sunday"> <p>Pazar</p> <ul id="times"></ul></div>
+            </div>
         </div>
 
         <ul></ul>

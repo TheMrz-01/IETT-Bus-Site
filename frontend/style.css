@@ -210,6 +210,7 @@ h2 {
 
     width: clamp(116px, 15vw, 168px);
     flex: 0 1 clamp(116px, 15vw, 168px);
+
     white-space: normal;
     line-height: 1.1;
 }
@@ -311,6 +312,16 @@ h2 {
   box-shadow: 0 8px 20px #2e7d3222;
 }
 
+.removeBus {
+    font-size: clamp(0.9rem, 0.35vw + 0.82rem, 1rem);
+    padding: 10px 16px;
+    min-width: 116px;
+    width: clamp(116px, 15vw, 168px);
+    min-height: var(--control-height);
+    height: var(--control-height);
+    line-height: 1.1;
+}
+
 @media (max-width: 700px) {
     .busList {
         justify-content: center;
@@ -322,6 +333,134 @@ h2 {
         padding: 8px 10px;
         font-size: clamp(0.85rem, 1vw + 0.55rem, 0.98rem);
     }
+
+    .removeBus {
+        min-width: 104px;
+        width: clamp(104px, 30vw, 142px);
+        height: 52px;
+        min-height: 52px;
+        padding: 8px 10px;
+        font-size: 0.82rem;
+    }
 }
 
+.fetchControls {
+    width: var(--controller-width);
+    margin: 10px auto 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
 
+.fetchText {
+    margin: 0;
+    padding: 0;
+    font-size: clamp(1.1rem, 0.9vw + 0.9rem, 1.6rem);
+    line-height: 1.2;
+}
+
+.fetchBtn {
+    width: clamp(28px, 2.4vw, 40px);
+    height: clamp(28px, 2.4vw, 40px);
+}
+
+.dataPanel {
+    width: var(--controller-width);
+    margin: 20px auto 28px;
+    padding: clamp(18px, 2.4vw, 28px);
+    border: 1px solid #77b885;
+    border-radius: 14px;
+    background: #f7fbf8;
+    box-shadow: 0 10px 24px #2e7d3222;
+}
+
+.dataPanel > p {
+    margin: 0 0 18px;
+    padding: 0;
+    font-size: clamp(1.05rem, 0.8vw + 0.95rem, 1.45rem);
+    line-height: 1.3;
+}
+
+.gidis {
+    margin: 0;
+    font-size: clamp(1.15rem, 1vw + 0.9rem, 1.7rem);
+}
+
+.gelis {
+    margin: 0;
+    font-size: clamp(1.15rem, 1vw + 0.9rem, 1.7rem);
+}
+
+.directionControl {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 8px 0 18px;
+}
+
+.changeDirection {
+    flex: 0 0 auto;
+    width: clamp(26px, 2vw, 34px);
+    height: clamp(26px, 2vw, 34px);
+}
+
+.remainingTime {
+    margin-bottom: 18px;
+}
+
+.remainingTime p {
+    margin: 8px 0;
+    padding: 0;
+    font-size: clamp(1.05rem, 0.85vw + 0.95rem, 1.5rem);
+    line-height: 1.35;
+}
+
+h3 {
+    color: #3f9e45;
+    font-size: clamp(1.2rem, 0.9vw + 1rem, 1.7rem);
+    font-weight: 900;
+    margin: 0 0 10px;
+    text-align: center;
+    line-height: 1.2;
+}
+
+.announcements p {
+    margin: 8px 0 0;
+    padding: 0;
+    font-size: clamp(1rem, 0.7vw + 0.9rem, 1.3rem);
+    line-height: 1.35;
+}
+
+.timeTable {
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.timeTable > div {
+    padding: 14px;
+    border: 1px solid #d8e9dc;
+    border-radius: 12px;
+    background: #ffffff;
+}
+
+.timeTable ul {
+    margin: 0;
+    padding-left: 18px;
+    font-size: clamp(0.95rem, 0.6vw + 0.85rem, 1.15rem);
+    color: #2f4634;
+}
+
+@media (max-width: 700px) {
+    .fetchControls {
+        gap: 10px;
+    }
+
+    .timeTable {
+        grid-template-columns: 1fr;
+    }
+}
