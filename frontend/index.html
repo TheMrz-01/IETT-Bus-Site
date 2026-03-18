@@ -34,38 +34,36 @@
         </div>
 
         
-        <div class="dataPanel" id="dataPanel" hidden>
-            <p>Select or add a bus into the bus list</p>
+        <div class="dataPanel" id="dataPanel">
+            <p class="enable theThing" id="element">Select or add a bus into the bus list</p>
 
-            <button class="btn removeBus" id="removeBus">Otobüsü çıkar</button>
+            <button class="btn disable removeBus" id="element">Otobüsü çıkar</button>
 
             <!-- I need to climb a big stone rn -->
 
-            <div class="directionControl">
+            <div class="disable directionControl" id="element">
                 <p class="gidis">Haciosman</p>
                 <img class="changeDirection"src="/../../assets/changeDirection.png" width="20px" height="20px" alt="Yon degistir">
                 <p class="gelis">Yeni Uyum</p>
             </div>
 
-            <div class="remainingTime">
+            <div class="disable remainingTime" id="element">
                 <p>En Yakın Birinci Kalkış: </p>
                 <p>En Yakın İkinci Kalkış: </p>
             </div>
 
-            <div class="announcements">
+            <div class="disable announcementTexts" id="element">
                 <h3>Duyurular</h3>
                 <p>Bla bla bla lorem ipsum</p>
             </div>
 
-            <div class="timeTable">
+            <div class="disable timeTable" id="element">
                 <h3>Saatler</h3>
                 <div class="workDays"> <p>Hafta İçi</p> <ul id="times"></ul></div>
                 <div class="saturday"> <p>Cumartesi</p> <ul id="times"></ul></div>
                 <div class="sunday"> <p>Pazar</p> <ul id="times"></ul></div>
             </div>
         </div>
-
-        <ul></ul>
     </div>
 </body>
 </html>

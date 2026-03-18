@@ -14,6 +14,10 @@ import express from "express";
 import type { Request, Response, NextFunction, RequestHandler } from "express";
 import cors from "cors";
 
+/* ==================
+* RATE LIMITER ZONE 
+================= */
+
 type TokenBucketState = {
   tokens: number;      
   lastRefillMs: number; 
@@ -40,6 +44,11 @@ type UpstreamLeakyBucketOptions = {
   maxQueueWaitMs: number;    
 };
 
+/* ==========
+* TYPE ZONE
+========== */ 
+
+// TODO: NEW TPYES LES GO
 type BusCodesBody = {
   busCodes: string[];
 };
@@ -95,10 +104,12 @@ type BusRoutesResponse = {
   summary: { total: number; success: number; failed: number };
 };
 
+// Rust shi =======
 type Ok<T> = { ok: true; busCode: string; data: T };
 type Err = { ok: false; busCode: string; error: { message: string; status?: number; kind: string } };
 type Result<T> = Ok<T> | Err;
 
+// JS Date fuckery ======
 type IstanbulDatePart = "year" | "month" | "day" | "hour" | "minute" | "second";
 
 function isAnnouncementJsonArray(x: any): x is announcementJson[] {

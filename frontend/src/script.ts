@@ -1,6 +1,6 @@
 //[TODO]: Add a toggle switch for different type of heading
 //[TODO]: Analyze the bus codes data find the longest bus code name
-
+//[TODO]: Dont just loop over data panel elements get them ahead of time and handle them inside of functions
 //[TODO]: Could add ok type
 type Err = { ok: false; busCode: string; error: { message: string; status?: number; kind: string } };
 
@@ -61,6 +61,26 @@ const addBusList = _addBusList;
 const busList = _busList;
 const dataPanel = _dataPanel;
 const removeBusBtn = _removeBusBtn;
+
+//BULLSHIT SECTION I NEED TO REFACTOR THIS ASAP
+const _directionControl = dataPanel.querySelector(".directionControl");
+const _remainingTime = dataPanel.querySelector(".remainingTime");
+const _announcementTexts = dataPanel.querySelector(".announcementTexts"); 
+const _timeTable = dataPanel.querySelector(".timeTable"); 
+
+if (
+  !(_directionControl instanceof HTMLDivElement) ||
+  !(_remainingTime instanceof HTMLDivElement) ||
+  !(_announcementTexts instanceof HTMLDivElement) ||
+  !(_timeTable instanceof HTMLDivElement) 
+) {
+  throw new Error("Required data panel DOM elements were not found");
+}
+
+const directionControl = _directionControl;
+const remainingTime = _remainingTime;
+const announcementTexts = _announcementTexts;
+const timeTable = _timeTable;
 
 function normalizeBusCode(value: string): string {
   return value.trim().toUpperCase();
@@ -142,25 +162,27 @@ function isErrErrorShape(x: unknown): x is Err["error"] {
   return true;
 }
 
-function getListBusCodes(){
+function getListBusCodes(): Array<string> {
   if(busList instanceof HTMLUListElement){
     return Array.from(busList.querySelectorAll("li"))
       .map((li) =>
         normalizeBusCode(li.textContent) ?? "");
   }
+
+  return [];
 }
 
-function updateBusList(busCodes: unknown){
+function updateBusList(busCodes: unknown): void {
   if(busCodeInput instanceof HTMLInputElement ){
     if(!(busCodes instanceof Array)) throw new Error("Arguments is not of array type");
 
     busCodes.forEach((busCode) => {
       const li = document.createElement("li");
-      li.className = "";
+      li.className = "busCode";
       li.id = busCode;
 
       const button = document.createElement("button");
-      button.className = "busListButton";
+      button.className = "busListButton not_active";
       button.textContent = busCode;
 
       li.appendChild(button);
@@ -171,19 +193,47 @@ function updateBusList(busCodes: unknown){
   }
 }
 
-function showDataPanel() {
+function showDataPanelContent(): void {
+  const elements = dataPanel.querySelectorAll("*");
+
+  elements.forEach((element) => {
+    if(element.className.includes("theThing")) {
+      if(element instanceof HTMLElement)
+        element.hidden = true;
+    } else {
+        if(element instanceof HTMLElement)
+          element.hidden = false;
+    }
+  });
+}
+
+function showDataPanelEmpty(): void {
+  const elements = dataPanel.querySelectorAll("*");
+
+  elements.forEach((element) => {
+    if(element.className.includes("theThing")) {
+      if(element instanceof HTMLElement)
+        element.hidden = false;
+    } else {
+        if(element instanceof HTMLElement)
+          element.hidden = true;
+    }
+  });
+}
+
+function showDataPanel(): void {
   if(!dataPanel) { console.log("Where panel??"); return; }
 
   dataPanel.hidden = false;
 }
 
-function hideDataPanel() {
+function hideDataPanel(): void {
   if(!dataPanel) { console.log("Where panel??"); return; }
 
   dataPanel.hidden = true;
 }
 
-function addBusToList() {
+function addBusToList(): void {
   const busCodes = getListBusCodes();
   if(!(busCodes instanceof Array) || busCodes.length >= 5) { alert("No more bussy bus bus than 5"); return; }
 
@@ -192,16 +242,15 @@ function addBusToList() {
     busCodeInput.value = "";
     busCodeInput.focus();
 
-    console.log(busCodes);
     if(busCodes.includes(busCode)) { alert("This bus code is already included in the list twin"); return; }
     if(busCode === "") { alert("Input bus code not cool twin"); return; }
 
     const li = document.createElement("li");
-    li.className = "";
+    li.className = "busCode";
     li.id = busCode;
 
     const button = document.createElement("button");
-    button.className = "busListButton";
+    button.className = "busListButton not_active";
     button.textContent = busCode;
 
     li.appendChild(button);
@@ -213,11 +262,11 @@ function addBusToList() {
   }
 }
 
-function removeBus(){
+function removeBus(): void {
   busList.querySelectorAll("li").forEach((element) => { if(element.id == selectedBusCode) element.remove(); })
   selectedBusCode = "";
 
-  // TODO: derender the data panel
+  showDataPanelEmpty();
 
   const updatedBusCodes = [...new Set(getListBusCodes())];
   localStorage.setItem("busCodes", JSON.stringify(updatedBusCodes));  
@@ -226,14 +275,17 @@ function removeBus(){
 function renderData(busCode: string, type?: string) {
   if(!dataPanel) { console.log("Where panel??"); return; }
 
-  
+  // TODO: Need a big ass rewrite
+  showDataPanelContent();
+  // I Dont give a FUCK about type safety
+  // TODO: Uuum render?
 }
 
 async function fetchData() {
   const response: unknown = await fetch("");
 }
 
-function loadStorage(){
+function loadStorage(): void {
   const savedBusCodes: string | null = localStorage.getItem("busCodes");
 
   const parsedBusCodes: string[] = savedBusCodes
@@ -247,14 +299,16 @@ function loadStorage(){
     }
 }
 
-/* ------------------------------------
-* Actual shi section ------------------
-*/
+/* ===================
+* Actual shi section 
+================== */
 
 // Run on DOM Load
 window.addEventListener("DOMContentLoaded", async () => {
   loadStorage();
   fetchData();
+  showDataPanelEmpty();
+
   // TODO: i donno
 });
 
@@ -292,7 +346,19 @@ busList.addEventListener("click", (event) => {
 
   const busCode = button.id;
   if (!busCode) return;
-  
+
+  busList.querySelectorAll("button").forEach((button) => {
+    if(button.textContent === busCode) button.className = button.className.replace("not_active", "is_active");
+    else {
+      if (button.className.includes("is_active")) button.className = button.className.replace("is_active", "not_active"); 
+    }
+  });
+
   selectedBusCode = normalizeBusCode(busCode);
   renderData(busCode);
 })
+
+// [DEBUG]
+setInterval(() => {
+  console.log(selectedBusCode);
+}, 1000);

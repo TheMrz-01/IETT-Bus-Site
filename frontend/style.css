@@ -297,17 +297,9 @@ h2 {
   background: #e6f4e8;
 }
 
-.busList button:active {
-    color: #f2f2f2;
-    background-color: #388E3C;
-    border-color: #2E7D32;
-    transform: translateY(0);
-    box-shadow: 0 2px 4px #00000033;
-}
-
 .busList button.is_active {
   background: linear-gradient(180deg, #4caf50 0%, #3f9e45 100%);
-  color: white;
+  color: #ffffff;
   border-color: #3f9e45;
   box-shadow: 0 8px 20px #2e7d3222;
 }
@@ -427,7 +419,7 @@ h3 {
     line-height: 1.2;
 }
 
-.announcements p {
+.announcementTexts p {
     margin: 8px 0 0;
     padding: 0;
     font-size: clamp(1rem, 0.7vw + 0.9rem, 1.3rem);
@@ -464,3 +456,5 @@ h3 {
         grid-template-columns: 1fr;
     }
 }
+
+[hidden] { display: none !important; }
