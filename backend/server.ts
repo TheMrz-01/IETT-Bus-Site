@@ -48,10 +48,19 @@ type UpstreamLeakyBucketOptions = {
 * TYPE ZONE
 ========== */ 
 
-// TODO: NEW TPYES LES GO
-type BusCodesBody = {
-  busCodes: string[];
-};
+// ========== NEW TPYES LES GO ==========
+type direction = "D" | "G"; 
+type dayType = "I" | "C" | "P";
+
+type busRoute = {
+  busCode: string,
+  direction: direction,
+  dayType: dayType
+}
+
+type busRoutesBody = {
+  busRoutes: busRoute[]
+}
 
 type announcementJson = {
   HATKODU: string;
@@ -61,11 +70,13 @@ type announcementJson = {
   MESAJ: string;
 };
 
+
 type announcementInfo = {
+  /* Could add these in the future
   "HATKODU": string;
   "HAT": string;
-  "TIP": "Günlük" | "Sefer" | string; 
-  "GUNCELLEME_SAATI": string;        
+  TIP": "Günlük" | "Sefer" | string; */
+  "GUNCELLEME_SAATI": string;    
   "MESAJ": string;
 };
 
@@ -76,39 +87,58 @@ type departureTimesJson = {
   SYON: string;
   SGUNTIPI: string;
   GUZERGAH_ISARETI: null;
-  SSERVISTIPI: string; // Dont need rat
+  SSERVISTIPI: string; 
   DT: string;
 };
 
 type departureTimesInfo = {
   "SHATKODU": string;
   "HATADI": string;
-  "SGUZERAH": string;
+  // Could add these in the future
+  //"SGUZERAH": string;
   "SYON": string;
   "SGUNTIPI": string;
-  "GUZERGAH_ISARETI": null;
-  "SSERVISTIPI": string;
+  //"GUZERGAH_ISARETI": null;
+  //"SSERVISTIPI": string; 
   "DT": string;
 };
-
-// TODO: Nein
-type departureTimes = departureTimesInfo[];
 
 type BusRoutesResponse = {
   ok: boolean;
   announcements: announcementInfo[];
-  times: Record<string, departureTimes>;
+  times: Record<string, departureTimesInfo[]>;
   errors: Record<string, Err["error"]>;
   summary: { total: number; success: number; failed: number };
 };
 
-// Rust shi =======
+// ====== Rust shi =======
 type Ok<T> = { ok: true; busCode: string; data: T };
 type Err = { ok: false; busCode: string; error: { message: string; status?: number; kind: string } };
 type Result<T> = Ok<T> | Err;
 
-// JS Date fuckery ======
+// ====== JS Date fuckery ======
 type IstanbulDatePart = "year" | "month" | "day" | "hour" | "minute" | "second";
+
+function isBusRoute(x: any): x is busRoute{
+  return (
+    x &&
+    typeof x === "object" &&
+    typeof x.busCode === "string" &&
+    (x.direction === "D" || x.direction === "G") &&
+    (x.dayType === "I" || x.dayType === "C" || x.dayType === "P") 
+  );
+}
+
+function isBusRoutesBody(value: unknown): value is busRoutesBody{
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "busRoutes" in value &&
+    Array.isArray((value as { busRoutes?: unknown }).busRoutes) &&
+    (value as { busRoutes: unknown[] }).busRoutes.every((x) => isBusRoute(x)) &&
+    (value as { busRoutes: unknown[] }).busRoutes.length <= 5
+  );
+}
 
 function isAnnouncementJsonArray(x: any): x is announcementJson[] {
   return (
@@ -147,7 +177,8 @@ function isDepartureTimeJson(value: unknown): value is departureTimesJson[] {
 
 function buildEnvelope(methodName: string, innerBody: string): string {
   //I legit have no idea why they
-  //Future mrz here! what?
+  //Future mrz here! 
+  //What the fuck is this bruh
   return `<?xml version="1.0" encoding="utf-8"?>
   <soap:Envelope
       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -262,35 +293,15 @@ function getIstanbulNow(): Date {
   );
 }
 
-function getTimeDifference(time: Date, timeNow: Date): string{
-  const diffMs = time.getTime() - timeNow.getTime();
-  const diffMinutes = Math.floor(diffMs / 60000);
-  const hours = Math.floor(diffMinutes / 60);
-  const minutes = diffMinutes % 60;
-
-  return`${hours}:${minutes.toString().padStart(2, '0')}`;
-}
-
-// TODO: This old as hell browski. After this refactor imma go ti miami find bbl demon
-function isBusCodesBody(value: unknown): value is BusCodesBody {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "busCodes" in value &&
-    Array.isArray((value as { busCodes?: unknown }).busCodes) &&
-    (value as { busCodes: unknown[] }).busCodes.every((x) => typeof x === "string") &&
-    (value as { busCodes: unknown[] }).busCodes.length <= 5
-  );
-}
-
 //[TODO]: fixy fix fix
-function getCorrectTypeData(
+function cleanData(
   data: departureTimesInfo[],
-  turkeyNow: Date ): Date[] {
+  turkeyNow: Date,
+  direction: direction,
+  dayType: dayType ): Date[] {
 
   const filteredData = data.filter(
-    // TODO: Yeah no bruh
-    (item) => item.SYON === "G" && item.SGUNTIPI === "I",
+    (item) => item.SYON === direction && item.SGUNTIPI === dayType,
   );
 
   const correctTypeData = filteredData.map((element) => {
@@ -312,7 +323,7 @@ function getCorrectTypeData(
   return correctTypeData;
 }
 
-async function fetchTimesForCode(busCode: string): Promise<Result<departureTimes>> {
+async function fetchTimesForCode(busCode: string, direction: direction, dayType: dayType): Promise<Result<departureTimesInfo>> {
   try {
     const departureTimeText = await callSoapLimited(
       "https://api.ibb.gov.tr/iett/UlasimAnaVeri/PlanlananSeferSaati.asmx",
@@ -330,8 +341,10 @@ async function fetchTimesForCode(busCode: string): Promise<Result<departureTimes
       };
     }
 
+    const finalData = cleanData(departureTimeData,getIstanbulNow(), direction, dayType);
+
     // TODO: Return all of the bus times
-    return { ok: true, busCode, data: departureTimeData };
+    return { ok: true, busCode, data: finalData };
 
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Unknown error";
@@ -364,7 +377,6 @@ async function getRelevantAnnouncements(busCodes: string[]): Promise<announcemen
   }
 
   const normalize = (s: unknown) => String(s ?? "").trim().toUpperCase();
-
   const busSet = new Set(busCodes.map(normalize));
 
   const relevant = jsonAllAnnouncements.filter(item =>
@@ -375,9 +387,6 @@ async function getRelevantAnnouncements(busCodes: string[]): Promise<announcemen
 
   relevant.forEach((item) => {
     relevantAnnouncements.push({
-      "HATKODU": item.HATKODU,
-      "HAT": item.HAT,
-      "TIP": item.TIP, 
       "GUNCELLEME_SAATI": item.GUNCELLEME_SAATI,      
       "MESAJ": item.MESAJ
     });
@@ -393,9 +402,9 @@ function normalizeBusCode(value: string): string {
 // TODO: Yeah im slimming you brochalalala
 function packResult(
   announcements: announcementInfo[],
-  timeResults: Result<departureTimes>[],
+  timeResults: Result<departureTimesInfo>[],
 ): BusRoutesResponse {
-  const times: Record<string, departureTimes> = {};
+  const times: Record<string, departureTimesInfo[]> = {};
   const errors: Record<string, Err["error"]> = {};
 
   for (const r of timeResults) {
@@ -487,8 +496,7 @@ function createRouteTokenBucketLimiter(options: TokenBucketOptions): RequestHand
     next();
   };
 }
-
-//----------------------------------------------------------------------
+//==========================================================================
 
 function createUpstreamLeakyBucket(options: UpstreamLeakyBucketOptions) {
   const {
@@ -611,6 +619,8 @@ function createUpstreamLeakyBucket(options: UpstreamLeakyBucketOptions) {
 
 const app = express();
 
+// ======== Rate limiting stuff ========
+
 const healthLimiter =   createRouteTokenBucketLimiter({
   capacity: 10,
   refillPerSecond: 0.25,
@@ -628,7 +638,7 @@ const upstreamLimiter = createUpstreamLeakyBucket({
   maxQueueWaitMs: 8000, // drop if stuck in queue too long
 });
 
-//[CAUTION]: Might need to delete this
+// [CAUTION]: Might need to delete this
 app.set("trust proxy", 1);
 app.use(cors());
 app.use(express.json())
@@ -656,12 +666,14 @@ app.get("/ping", (req, res) => {
 });
 
 app.post(("/otobus/routes"), busRoutesLimiter, async (req: Request<{}, {}, unknown>, res: Response) => {
-  if (!isBusCodesBody(req.body)) {
+  
+  if (!isBusRoutesBody(req.body)) {
     return res.status(400).send("Invalid request body");
   }
 
+  // TODO: This shit needs to go to a func bruh
   const busCodes: string[] = [...new Set(
-    req.body.busCodes.map((c) => c.trim().toUpperCase()).filter(Boolean)
+    req.body.busRoutes.map((c) => c.busCode.trim().toUpperCase() ).filter(Boolean)
   )];
 
   if(busCodes.length === 0){
@@ -693,9 +705,10 @@ app.post(("/otobus/routes"), busRoutesLimiter, async (req: Request<{}, {}, unkno
 
   } catch (error: unknown) {
       console.error("Server says:", error);
-    if (!res.headersSent) {
-      res.status(500).send("Request failed");
-    }
+
+      if (!res.headersSent) {
+        res.status(500).send("Request failed");
+      }
   }
 })
 

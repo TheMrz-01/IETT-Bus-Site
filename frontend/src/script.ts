@@ -315,6 +315,17 @@ function isResponse(response: unknown): boolean{
 
 // ========= NETWORKING SHIT N ==========
 function packageSingularRequest(){
+  const object = {
+    busRoutes: [
+      { busCode: selectedBusCode, direction: selectedDirection, dayType: currentDayType}
+    ]
+  };
+
+  return JSON.stringify( object );
+}
+
+// TODO: yes king
+function packageListRequest(){
   return JSON.stringify({
       busCode: selectedBusCode,
       direction: selectedDirection,
@@ -323,7 +334,7 @@ function packageSingularRequest(){
 }
 
 // TODO: yes king
-function packageListRequest(){
+function packageRequest(){
   return JSON.stringify({
       busCode: selectedBusCode,
       direction: selectedDirection,
@@ -351,6 +362,8 @@ async function fetchSingularData(){
   }
 
   const data: unknown = await response.json();
+  
+  return data;
 }
 
 async function fetchListData() {
@@ -374,6 +387,7 @@ async function fetchListData() {
 
     const data: unknown = await response.json();
 }
+// ====================================================
 
 function loadStorage(): void {
   const savedBusCodes: string | null = localStorage.getItem("busCodes");
@@ -442,7 +456,7 @@ busList.addEventListener("click", (event) => {
 
   busList.querySelectorAll("button").forEach((button) => {
     if(button.textContent === busCode) button.className = button.className.replace("not_active", "is_active");
-    else {
+    else { 
       if (button.className.includes("is_active")) button.className = button.className.replace("is_active", "not_active"); 
     }
   });
@@ -450,7 +464,8 @@ busList.addEventListener("click", (event) => {
   selectedDirection = busCode === selectedBusCode ? selectedDirection : "G";
   selectedBusCode = normalizeBusCode(busCode);
 
-  fetchSingularData();
+  const data = fetchSingularData();
+  console.log(data);
 
   // TODO: Yeah nah im not gonna let this slide
   renderData(busCode);
@@ -462,10 +477,13 @@ directionBtn.addEventListener("click", (event) => {
   fetchSingularData();
 });
 
-// [DEBUG]
+// === [DEBUG] ===
+
+/*
 setInterval(() => {
   console.log("============= ");
   console.log("Bus code: " + selectedBusCode);
   console.log("Direction: " + selectedDirection);
   console.log("============= ");
 }, 1000);
+*/
