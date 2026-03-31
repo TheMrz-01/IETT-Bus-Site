@@ -70,13 +70,13 @@ type announcementInfo = {
 };
 
 type departureTimesJson = {
-  SHATKODU: string;
+  SHATKODU: string; 
   HATADI: string;
   SGUZERAH: string;
   SYON: string;
   SGUNTIPI: string;
   GUZERGAH_ISARETI: null;
-  SSERVISTIPI: string;
+  SSERVISTIPI: string; // Dont need rat
   DT: string;
 };
 
@@ -91,15 +91,13 @@ type departureTimesInfo = {
   "DT": string;
 };
 
-type departureTimeRemaining = {
-  timeRemaining: string;
-  secondTimeReamining: string;
-}
+// TODO: Nein
+type departureTimes = departureTimesInfo[];
 
 type BusRoutesResponse = {
   ok: boolean;
   announcements: announcementInfo[];
-  times: Record<string, departureTimeRemaining>;
+  times: Record<string, departureTimes>;
   errors: Record<string, Err["error"]>;
   summary: { total: number; success: number; failed: number };
 };
@@ -149,6 +147,7 @@ function isDepartureTimeJson(value: unknown): value is departureTimesJson[] {
 
 function buildEnvelope(methodName: string, innerBody: string): string {
   //I legit have no idea why they
+  //Future mrz here! what?
   return `<?xml version="1.0" encoding="utf-8"?>
   <soap:Envelope
       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -272,8 +271,8 @@ function getTimeDifference(time: Date, timeNow: Date): string{
   return`${hours}:${minutes.toString().padStart(2, '0')}`;
 }
 
+// TODO: This old as hell browski. After this refactor imma go ti miami find bbl demon
 function isBusCodesBody(value: unknown): value is BusCodesBody {
-// TODO: Add 
   return (
     typeof value === "object" &&
     value !== null &&
@@ -290,6 +289,7 @@ function getCorrectTypeData(
   turkeyNow: Date ): Date[] {
 
   const filteredData = data.filter(
+    // TODO: Yeah no bruh
     (item) => item.SYON === "G" && item.SGUNTIPI === "I",
   );
 
@@ -312,7 +312,7 @@ function getCorrectTypeData(
   return correctTypeData;
 }
 
-async function fetchTimesForCode(busCode: string): Promise<Result<departureTimeRemaining>> {
+async function fetchTimesForCode(busCode: string): Promise<Result<departureTimes>> {
   try {
     const departureTimeText = await callSoapLimited(
       "https://api.ibb.gov.tr/iett/UlasimAnaVeri/PlanlananSeferSaati.asmx",
@@ -330,35 +330,9 @@ async function fetchTimesForCode(busCode: string): Promise<Result<departureTimeR
       };
     }
 
-    const turkeyNow = getIstanbulNow();
-    const correctTypeData = getCorrectTypeData(departureTimeData, turkeyNow);
+    // TODO: Return all of the bus times
+    return { ok: true, busCode, data: departureTimeData };
 
-    let firstBus: Date | undefined;
-    let secondBus: Date | undefined;
-
-    for (let i = 0; i < correctTypeData.length; i++) {
-      const cur = correctTypeData[i];
-      if (cur instanceof Date && cur > turkeyNow) {
-        firstBus = cur;
-        secondBus = correctTypeData[i + 1];
-        break;
-      }
-    }
-
-    if (!firstBus || !(secondBus instanceof Date)) {
-      return {
-        ok: false,
-        busCode,
-        error: { message: "No upcoming departures found", kind: "nodata" },
-      };
-    }
-
-    const data: departureTimeRemaining = {
-      timeRemaining: getTimeDifference(firstBus, turkeyNow),
-      secondTimeReamining: getTimeDifference(secondBus, turkeyNow),
-    };
-
-    return { ok: true, busCode, data };
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Unknown error";
     const status = (e as any)?.status as number | undefined;
@@ -416,11 +390,12 @@ function normalizeBusCode(value: string): string {
   return value.trim().toUpperCase();
 }
 
+// TODO: Yeah im slimming you brochalalala
 function packResult(
   announcements: announcementInfo[],
-  timeResults: Result<departureTimeRemaining>[],
+  timeResults: Result<departureTimes>[],
 ): BusRoutesResponse {
-  const times: Record<string, departureTimeRemaining> = {};
+  const times: Record<string, departureTimes> = {};
   const errors: Record<string, Err["error"]> = {};
 
   for (const r of timeResults) {
@@ -717,94 +692,12 @@ app.post(("/otobus/routes"), busRoutesLimiter, async (req: Request<{}, {}, unkno
     return res.json(packed);
 
   } catch (error: unknown) {
-    console.error("Server says:", error);
+      console.error("Server says:", error);
     if (!res.headersSent) {
       res.status(500).send("Request failed");
     }
   }
 })
-
-/*
-app.get("/bus/:hatKodu", async (req, res) => {
-    const hat: string = req.params.hatKodu;
-
-    try{
-      const [
-        seferXml,
-        duyuruXml
-      ] = await Promise.all([
-        callSoap(
-          "https://api.ibb.gov.tr/iett/UlasimAnaVeri/PlanlananSeferSaati.asmx",
-          "GetPlanlananSeferSaati_json",
-          `<HatKodu>${hat}</HatKodu>`
-        ),
-
-        callSoap(
-          "https://api.ibb.gov.tr/iett/UlasimDinamikVeri/Duyurular.asmx",
-          "GetDuyurular_json",
-          `<HatKodu>${hat}</HatKodu>`
-        )
-      ]);
-
-      const seferData = toSeferItems(
-        xml2json(seferXml, "GetPlanlananSeferSaati_jsonResult"),
-      );
-
-      const duyuruData = toAnnouncementItems(
-        xml2json(duyuruXml, "GetDuyurular_jsonResult"),
-      );
-
-      const turkeyNow: Date = getIstanbulNow();
-
-      const correctTypeData: Date[] = getCorrectTypeData(seferData, turkeyNow);
-
-      if (correctTypeData[0] instanceof Date && correctTypeData[1] instanceof Date
-        && turkeyNow <= correctTypeData[0]) {
-
-        return res.json({
-          timeRemaining: getTimeDifference(correctTypeData[0], turkeyNow),
-          secondTimeReamining: getTimeDifference(correctTypeData[1], turkeyNow),
-          announcement: getCorrectAnnouncement(duyuruData, hat)
-        });
-      }
-
-      let firstBus = undefined;
-      let secondBus = undefined;
-      
-      for (let i = 0; i < correctTypeData.length; i++) {
-        const cur = correctTypeData[i];
-
-        if (cur && cur instanceof Date && cur > turkeyNow) {
-          firstBus = cur;
-      
-          if (i + 1 < correctTypeData.length) {
-            secondBus = correctTypeData[i + 1];
-          }
-      
-          break;
-        } 
-      }
-
-      if (firstBus && secondBus) {
-        const firstDT = getTimeDifference(firstBus, turkeyNow);
-        const secondDT = getTimeDifference(secondBus, turkeyNow);
-        const correctAnnouncements = getCorrectAnnouncement(duyuruData, hat);
-
-        return res.json({
-          timeRemaining: firstDT,
-          secondTimeReamining: secondDT,
-          announcement: correctAnnouncements
-        });
-      }
-
-    } catch (err){
-        console.error(err);
-        if (!res.headersSent) {
-          res.status(500).send("SOAP request failed");
-        }
-    }
-})
-*/
 
 const PORT = Number(process.env.PORT || 3001);
 const HOST = process.env.HOST || "127.0.0.1";

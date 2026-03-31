@@ -8,6 +8,10 @@ type AnnouncementItem = {
   MESAJ?: string;
 };
 
+// IETT Stufz
+type direction = "D" | "G"; 
+type dayType = "I" | "C" | "P";
+
 type BusResponse = {
   timeRemaining?: string;
   secondTimeReamining?: string;
@@ -37,21 +41,21 @@ type BusRoutesResponse = {
   summary: { total: number; success: number; failed: number };
 };
 
-let selectedBusCode: string = "";
-
 // TODO: Add the remaining elements
 const _busCodeInput = document.getElementById("busCodeInput");
 const _addBusList = document.getElementById("addBusList");
 const _busList = document.querySelector(".busListWrapper .busList");
 const _dataPanel = document.getElementById("dataPanel");
 const _removeBusBtn = document.querySelector(".dataPanel .removeBus");
+const _directionBtn = document.querySelector(".dataPanel .directionControl .changeDirection");
 
 if (
   !(_busCodeInput instanceof HTMLInputElement) ||
   !(_addBusList instanceof HTMLButtonElement) ||
   !(_busList instanceof HTMLUListElement) ||
   !(_dataPanel instanceof HTMLDivElement) ||
-  !(_removeBusBtn instanceof HTMLButtonElement)
+  !(_removeBusBtn instanceof HTMLButtonElement) ||
+  !(_directionBtn instanceof HTMLImageElement)
 ) {
   throw new Error("Required DOM elements were not found");
 }
@@ -61,6 +65,7 @@ const addBusList = _addBusList;
 const busList = _busList;
 const dataPanel = _dataPanel;
 const removeBusBtn = _removeBusBtn;
+const directionBtn = _directionBtn;
 
 //BULLSHIT SECTION I NEED TO REFACTOR THIS ASAP
 const _directionControl = dataPanel.querySelector(".directionControl");
@@ -81,6 +86,21 @@ const directionControl = _directionControl;
 const remainingTime = _remainingTime;
 const announcementTexts = _announcementTexts;
 const timeTable = _timeTable;
+
+function getDatType(): dayType{
+  const date = new Date();
+  const day = date.getDay();
+
+  if (day === 0) return "P"; // Pazar
+  if (day === 6) return "C"; // Cumartesi
+  
+  return "I"; // Is gunu
+}
+
+// ======= REQUEST SHI ===========
+let selectedBusCode: string = ""; 
+let selectedDirection: direction = "G"; // Yeah okey just put the fleshlight into my bag lil bro
+let currentDayType: dayType = getDatType();
 
 function normalizeBusCode(value: string): string {
   return value.trim().toUpperCase();
@@ -169,6 +189,7 @@ function getListBusCodes(): Array<string> {
         normalizeBusCode(li.textContent) ?? "");
   }
 
+  // TODO: Yeah nah
   return [];
 }
 
@@ -281,8 +302,77 @@ function renderData(busCode: string, type?: string) {
   // TODO: Uuum render?
 }
 
-async function fetchData() {
-  const response: unknown = await fetch("");
+function isResponse(response: unknown): boolean{
+  return (
+    Array.isArray(response) &&
+      response.every((item) => {
+        item &&
+        typeof item === "object" 
+        // TODO: Continue type shiiiii
+    })
+  );
+}
+
+// ========= NETWORKING SHIT N ==========
+function packageSingularRequest(){
+  return JSON.stringify({
+      busCode: selectedBusCode,
+      direction: selectedDirection,
+      dayType: currentDayType
+  })
+}
+
+// TODO: yes king
+function packageListRequest(){
+  return JSON.stringify({
+      busCode: selectedBusCode,
+      direction: selectedDirection,
+      dayType: currentDayType
+  })
+}
+
+async function fetchSingularData(){
+  const requestBody = packageSingularRequest();
+
+  console.log(requestBody);
+
+  const response: Response = await fetch("/otobus/routes", {
+    method: "POST",
+    headers: {
+        "Content-Type": "application/json",
+    },
+    body: requestBody
+  });
+
+  // TODO: Check if expected type
+  if (!response.ok && isResponse(response)) {
+      const text = await response.text().catch(() => "");
+      throw new Error(`HTTP error ${response.status}: ${text || response.statusText}`);
+  }
+
+  const data: unknown = await response.json();
+}
+
+async function fetchListData() {
+  const requestBody = packageSingularRequest();
+
+  console.log(requestBody);
+
+  const response: Response = await fetch("/otobus/routes", {
+    method: "POST",
+    headers: {
+        "Content-Type": "application/json",
+    },
+    body: requestBody
+  });
+
+  // TODO: Check if expected type
+  if (!response.ok && isResponse(response)) {
+      const text = await response.text().catch(() => "");
+      throw new Error(`HTTP error ${response.status}: ${text || response.statusText}`);
+    }
+
+    const data: unknown = await response.json();
 }
 
 function loadStorage(): void {
@@ -299,6 +389,11 @@ function loadStorage(): void {
     }
 }
 
+function changeDirection(){
+  if (selectedDirection != undefined && selectedDirection === "D") selectedDirection = "G";
+  else if (selectedDirection != undefined && selectedDirection === "G") selectedDirection = "D";
+}
+
 /* ===================
 * Actual shi section 
 ================== */
@@ -306,9 +401,8 @@ function loadStorage(): void {
 // Run on DOM Load
 window.addEventListener("DOMContentLoaded", async () => {
   loadStorage();
-  fetchData();
+  fetchListData();
   showDataPanelEmpty();
-
   // TODO: i donno
 });
 
@@ -316,7 +410,6 @@ window.addEventListener("DOMContentLoaded", async () => {
 removeBusBtn.addEventListener("click", (event) => {
   removeBus();
 });
-
 
 // Add bus to list on enter
 busCodeInput.addEventListener("keydown", (event) => {
@@ -354,11 +447,25 @@ busList.addEventListener("click", (event) => {
     }
   });
 
+  selectedDirection = busCode === selectedBusCode ? selectedDirection : "G";
   selectedBusCode = normalizeBusCode(busCode);
+
+  fetchSingularData();
+
+  // TODO: Yeah nah im not gonna let this slide
   renderData(busCode);
 })
 
+// Direction thingy
+directionBtn.addEventListener("click", (event) => {
+  changeDirection();
+  fetchSingularData();
+});
+
 // [DEBUG]
 setInterval(() => {
-  console.log(selectedBusCode);
+  console.log("============= ");
+  console.log("Bus code: " + selectedBusCode);
+  console.log("Direction: " + selectedDirection);
+  console.log("============= ");
 }, 1000);

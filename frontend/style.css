@@ -457,4 +457,8 @@ h3 {
     }
 }
 
+.changeDirection {
+    cursor: pointer;
+}
+
 [hidden] { display: none !important; }
