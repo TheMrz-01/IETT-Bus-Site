@@ -62,6 +62,7 @@ type busRoutesBody = {
   busRoutes: busRoute[]
 }
 
+// Json parsing type
 type announcementJson = {
   HATKODU: string;
   HAT: string;
@@ -70,27 +71,29 @@ type announcementJson = {
   MESAJ: string;
 };
 
-
+// Response type
 type announcementInfo = {
-  /* Could add these in the future
   "HATKODU": string;
+  /* Could add these in the future
   "HAT": string;
   TIP": "Günlük" | "Sefer" | string; */
   "GUNCELLEME_SAATI": string;    
   "MESAJ": string;
 };
 
+// Json parsing type
 type departureTimesJson = {
   SHATKODU: string; 
   HATADI: string;
   SGUZERAH: string;
   SYON: string;
   SGUNTIPI: string;
-  GUZERGAH_ISARETI: null;
+  GUZERGAH_ISARETI: string;
   SSERVISTIPI: string; 
   DT: string;
 };
 
+// Response type
 type departureTimesInfo = {
   "SHATKODU": string;
   "HATADI": string;
@@ -98,7 +101,7 @@ type departureTimesInfo = {
   //"SGUZERAH": string;
   "SYON": string;
   "SGUNTIPI": string;
-  //"GUZERGAH_ISARETI": null;
+  "GUZERGAH_ISARETI": string;
   //"SSERVISTIPI": string; 
   "DT": string;
 };
@@ -294,36 +297,41 @@ function getIstanbulNow(): Date {
 }
 
 //[TODO]: fixy fix fix
-function cleanData(
-  data: departureTimesInfo[],
+function filterData(
+  data: departureTimesJson[],
   turkeyNow: Date,
   direction: direction,
-  dayType: dayType ): Date[] {
+  dayType: dayType ): departureTimesInfo[] {
+
+  if(!isRecord(direction) || !isRecord(dayType)) {  
+    console.log("No direction or day type provided");
+    return [];
+  }
 
   const filteredData = data.filter(
     (item) => item.SYON === direction && item.SGUNTIPI === dayType,
   );
 
-  const correctTypeData = filteredData.map((element) => {
-    const [hour = 0, minute = 0] = element.DT.split(":").map(Number);
+  console.log("Filtered: " + filteredData);
 
-    return new Date(
-      turkeyNow.getFullYear(),
-      turkeyNow.getMonth(),
-      turkeyNow.getDate(),
-      hour,
-      minute,
-      0,
-      0,
-    );
+  // ELIMINATE THE STUFFZ
+  const correctTypeData: departureTimesInfo[] = filteredData.map((element) => {
+    return {
+    SHATKODU: element.SHATKODU,
+    HATADI: element.HATADI,
+    SYON: element.SYON,
+    SGUNTIPI: element.SGUNTIPI,
+    GUZERGAH_ISARETI: element.GUZERGAH_ISARETI,
+    DT: element.DT,
+  };
   });
 
-  correctTypeData.sort((a, b) => a.getTime() - b.getTime());
+  // Here lies sort function | RIP |
 
   return correctTypeData;
 }
 
-async function fetchTimesForCode(busCode: string, direction: direction, dayType: dayType): Promise<Result<departureTimesInfo>> {
+async function fetchTimesForCode(busCode: string, direction: direction, dayType: dayType): Promise<Result<departureTimesInfo[]>> {
   try {
     const departureTimeText = await callSoapLimited(
       "https://api.ibb.gov.tr/iett/UlasimAnaVeri/PlanlananSeferSaati.asmx",
@@ -331,7 +339,8 @@ async function fetchTimesForCode(busCode: string, direction: direction, dayType:
       `<HatKodu>${busCode}</HatKodu>`
     );
 
-    const departureTimeData = xml2json(departureTimeText, "GetPlanlananSeferSaati_jsonResult");
+    // There wasnt a await like huh
+    const departureTimeData = await xml2json(departureTimeText, "GetPlanlananSeferSaati_jsonResult");
 
     if (!isDepartureTimeJson(departureTimeData)) {
       return {
@@ -341,7 +350,9 @@ async function fetchTimesForCode(busCode: string, direction: direction, dayType:
       };
     }
 
-    const finalData = cleanData(departureTimeData,getIstanbulNow(), direction, dayType);
+    console.log("Data: " + departureTimeData);
+
+    const finalData = filterData(departureTimeData,getIstanbulNow(), direction, dayType);
 
     // TODO: Return all of the bus times
     return { ok: true, busCode, data: finalData };
@@ -387,6 +398,7 @@ async function getRelevantAnnouncements(busCodes: string[]): Promise<announcemen
 
   relevant.forEach((item) => {
     relevantAnnouncements.push({
+      "HATKODU": item.HATKODU,
       "GUNCELLEME_SAATI": item.GUNCELLEME_SAATI,      
       "MESAJ": item.MESAJ
     });
@@ -402,7 +414,7 @@ function normalizeBusCode(value: string): string {
 // TODO: Yeah im slimming you brochalalala
 function packResult(
   announcements: announcementInfo[],
-  timeResults: Result<departureTimesInfo>[],
+  timeResults: Result<departureTimesInfo[]>,
 ): BusRoutesResponse {
   const times: Record<string, departureTimesInfo[]> = {};
   const errors: Record<string, Err["error"]> = {};
@@ -689,7 +701,7 @@ app.post(("/otobus/routes"), busRoutesLimiter, async (req: Request<{}, {}, unkno
 
     const timesTask = async () => {
       const tasks = busCodes.map((code) => async () => {
-        return fetchTimesForCode(code);
+        return fetchTimesForCode(code,"D","I");
       });
 
       return await Promise.all(tasks.map(fn => fn()));
