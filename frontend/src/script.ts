@@ -432,6 +432,7 @@ busCodeInput.addEventListener("keydown", (event) => {
   }
 
   event.preventDefault();
+  fetchSingularData();
   addBusToList();
 });
 

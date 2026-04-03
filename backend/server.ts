@@ -303,7 +303,7 @@ function filterData(
   direction: direction,
   dayType: dayType ): departureTimesInfo[] {
 
-  if(!isRecord(direction) || !isRecord(dayType)) {  
+  if(direction === null || dayType === null) {  
     console.log("No direction or day type provided");
     return [];
   }
@@ -311,8 +311,6 @@ function filterData(
   const filteredData = data.filter(
     (item) => item.SYON === direction && item.SGUNTIPI === dayType,
   );
-
-  console.log("Filtered: " + filteredData);
 
   // ELIMINATE THE STUFFZ
   const correctTypeData: departureTimesInfo[] = filteredData.map((element) => {
@@ -349,8 +347,6 @@ async function fetchTimesForCode(busCode: string, direction: direction, dayType:
         error: { message: "Invalid departure time shape", kind: "parse" },
       };
     }
-
-    console.log("Data: " + departureTimeData);
 
     const finalData = filterData(departureTimeData,getIstanbulNow(), direction, dayType);
 
@@ -411,10 +407,28 @@ function normalizeBusCode(value: string): string {
   return value.trim().toUpperCase();
 }
 
+// Get needed datas
+function toBusRouteArray(request: unknown){
+  if(!isBusRoutesBody(request)) {
+    console.log("Can't convert non bus route to bus route");
+    return [];
+  }
+
+  const data: busRoute[] = request.busRoutes.map((element) => {
+    return {
+      busCode: element.busCode,
+      direction: element.direction,
+      dayType: element.dayType
+    }
+  })
+
+  return data;
+}
+
 // TODO: Yeah im slimming you brochalalala
 function packResult(
   announcements: announcementInfo[],
-  timeResults: Result<departureTimesInfo[]>,
+  timeResults: Result<departureTimesInfo[]>[],
 ): BusRoutesResponse {
   const times: Record<string, departureTimesInfo[]> = {};
   const errors: Record<string, Err["error"]> = {};
@@ -687,6 +701,10 @@ app.post(("/otobus/routes"), busRoutesLimiter, async (req: Request<{}, {}, unkno
   const busCodes: string[] = [...new Set(
     req.body.busRoutes.map((c) => c.busCode.trim().toUpperCase() ).filter(Boolean)
   )];
+
+  const busRoutes = toBusRouteArray(req.body);
+
+  console.log(busRoutes);
 
   if(busCodes.length === 0){
     return res.status(400).json({error: "No bus codes provided"});
