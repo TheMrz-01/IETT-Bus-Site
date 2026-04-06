@@ -706,9 +706,9 @@ app.post(("/otobus/routes"), busRoutesLimiter, async (req: Request<{}, {}, unkno
 
   console.log(busRoutes);
 
-  if(busCodes.length === 0){
+  if(busRoutes.length === 0){
     return res.status(400).json({error: "No bus codes provided"});
-  } if(busCodes.length > 5) {
+  } if(busRoutes.length > 5) {
     return res.status(400).json({error: "Bruh what more than 5!?"});
   }
 
@@ -718,8 +718,8 @@ app.post(("/otobus/routes"), busRoutesLimiter, async (req: Request<{}, {}, unkno
     };
 
     const timesTask = async () => {
-      const tasks = busCodes.map((code) => async () => {
-        return fetchTimesForCode(code,"D","I");
+      const tasks = busRoutes.map((code) => async () => {
+        return fetchTimesForCode(code.busCode,code.direction,code.dayType);
       });
 
       return await Promise.all(tasks.map(fn => fn()));

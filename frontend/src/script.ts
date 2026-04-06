@@ -12,33 +12,47 @@ type AnnouncementItem = {
 type direction = "D" | "G"; 
 type dayType = "I" | "C" | "P";
 
-type BusResponse = {
-  timeRemaining?: string;
-  secondTimeReamining?: string;
-  announcement?: AnnouncementItem[];
-};
-
-//TEMP TYPE
-type announcementInfo = {
-  "HATKODU": string;
-  "HAT": string;
-  "TIP": "Günlük" | "Sefer" | string; 
-  "GUNCELLEME_SAATI": string;        
-  "MESAJ": string;
-};
-
-type departureTimeRemaining = {
-  timeRemaining: string;
-  secondTimeReamining: string;
-}
 
 type BusRoutesResponse = {
   ok: boolean;
   announcements: announcementInfo[];
-  times: Record<string, departureTimeRemaining>;
+  times: Record<string, departureTimesInfo[]>;
   timestamp: number; // Will return as epoch
   errors: Record<string, Err["error"]>;
   summary: { total: number; success: number; failed: number };
+};
+
+type busRoute = {
+  busCode: string,
+  direction: direction,
+  dayType: dayType
+}
+
+type busRoutesBody = {
+  busRoutes: busRoute[]
+}
+
+// Response type
+type announcementInfo = {
+  "HATKODU": string;
+  /* Could add these in the future
+  "HAT": string;
+  TIP": "Günlük" | "Sefer" | string; */
+  "GUNCELLEME_SAATI": string;    
+  "MESAJ": string;
+};
+
+// Response type
+type departureTimesInfo = {
+  "SHATKODU": string;
+  "HATADI": string;
+  // Could add these in the future
+  //"SGUZERAH": string;
+  "SYON": string;
+  "SGUNTIPI": string;
+  "GUZERGAH_ISARETI": string;
+  //"SSERVISTIPI": string; 
+  "DT": string;
 };
 
 // TODO: Add the remaining elements
@@ -118,6 +132,7 @@ function isBusRoutesResponse(value: unknown): value is BusRoutesResponse {
   if (!isRecord(value.times)) return false;
   for (const [k, v] of Object.entries(value.times)) {
     if (typeof k !== "string") return false; 
+    // TODO: is departure time
     if (!isDepartureTimeRemaining(v)) return false;
   }
 
@@ -157,15 +172,6 @@ function isAnnouncementInfo(x: unknown): x is announcementInfo {
     typeof x.TIP === "string" &&
     typeof x.GUNCELLEME_SAATI === "string" &&
     typeof x.MESAJ === "string"
-  );
-}
-
-function isDepartureTimeRemaining(x: unknown): x is departureTimeRemaining {
-  if (!isRecord(x)) return false;
-
-  return (
-    typeof x.timeRemaining === "string" &&
-    typeof x.secondTimeReamining === "string"
   );
 }
 
@@ -293,7 +299,7 @@ function removeBus(): void {
   localStorage.setItem("busCodes", JSON.stringify(updatedBusCodes));  
 }
 
-function renderData(busCode: string, type?: string) {
+function renderData(busCode: string, type?: string, responseBusRoutes?: busRoutesBody) {
   if(!dataPanel) { console.log("Where panel??"); return; }
 
   // TODO: Need a big ass rewrite
@@ -432,7 +438,6 @@ busCodeInput.addEventListener("keydown", (event) => {
   }
 
   event.preventDefault();
-  fetchSingularData();
   addBusToList();
 });
 
