@@ -120,6 +120,27 @@ function normalizeBusCode(value: string): string {
   return value.trim().toUpperCase();
 }
 
+function isBusRoute(x: any): x is busRoute{
+  return (
+    x &&
+    typeof x === "object" &&
+    typeof x.busCode === "string" &&
+    (x.direction === "D" || x.direction === "G") &&
+    (x.dayType === "I" || x.dayType === "C" || x.dayType === "P") 
+  );
+}
+
+function isBusRouteBody(body: unknown) {
+  return (
+    typeof body === "object" &&
+    body !== null &&
+    "busRoutes" in body &&
+    Array.isArray((body as { busRoutes?: unknown }).busRoutes) &&
+    (body as { busRoutes: unknown[] }).busRoutes.every((x) => isBusRoute(x)) &&
+    (body as { busRoutes: unknown[] }).busRoutes.length <= 5
+  );
+}
+
 // TODO: Check timestamp
 function isBusRoutesResponse(value: unknown): value is BusRoutesResponse {
   if (!isRecord(value)) return false;
@@ -129,11 +150,11 @@ function isBusRoutesResponse(value: unknown): value is BusRoutesResponse {
   if (!Array.isArray(value.announcements)) return false;
   if (!value.announcements.every(isAnnouncementInfo)) return false;
 
+  // TODO: AM I BLIND WTF IS THIS
   if (!isRecord(value.times)) return false;
   for (const [k, v] of Object.entries(value.times)) {
     if (typeof k !== "string") return false; 
-    // TODO: is departure time
-    if (!isDepartureTimeRemaining(v)) return false;
+    if (!isBusRouteBody(v)) return false;
   }
 
   if (!isRecord(value.errors)) return false;
@@ -299,13 +320,34 @@ function removeBus(): void {
   localStorage.setItem("busCodes", JSON.stringify(updatedBusCodes));  
 }
 
-function renderData(busCode: string, type?: string, responseBusRoutes?: busRoutesBody) {
+function renderData(busCode: string, responseBusRoutes?: BusRoutesResponse) {
+  console.log("ALLAH");
+
   if(!dataPanel) { console.log("Where panel??"); return; }
+
+  console.log("PANEL KING");
 
   // TODO: Need a big ass rewrite
   showDataPanelContent();
   // I Dont give a FUCK about type safety
   // TODO: Uuum render?
+
+  console.log("SHOW KING");
+
+  if(!isBusRouteBody(responseBusRoutes)) return;
+
+  console.log("BUS ROUTE BODY KING");
+
+  // TODO: Add announcements
+  const times = responseBusRoutes?.times[Number(busCode)];
+
+  console.log("TIMES KING");
+
+  const firstRT = remainingTime.querySelectorAll("#first");
+  if(firstRT instanceof HTMLParagraphElement) firstRT.textContent = "FIRST ";
+
+  const secondRT = remainingTime.querySelectorAll("#second");
+  if(secondRT instanceof HTMLParagraphElement) secondRT.textContent = "FRC ";
 }
 
 function isResponse(response: unknown): boolean{
@@ -368,7 +410,11 @@ async function fetchSingularData(){
   }
 
   const data: unknown = await response.json();
+
+  console.log("Unkown data: " + data);
   
+  if(!isBusRoutesResponse(data)) { console.log("What the fuck is this"); return []; }
+
   return data;
 }
 
@@ -451,7 +497,7 @@ addBusList.addEventListener("click", () => {
   addBusToList();
 })
 
-busList.addEventListener("click", (event) => {
+busList.addEventListener("click", async (event) => {
   const target = event.target as HTMLLIElement;
   const button = target.closest(".busCode");
 
@@ -470,11 +516,14 @@ busList.addEventListener("click", (event) => {
   selectedDirection = busCode === selectedBusCode ? selectedDirection : "G";
   selectedBusCode = normalizeBusCode(busCode);
 
-  const data = fetchSingularData();
-  console.log(data);
+  const data = await fetchSingularData();
 
-  // TODO: Yeah nah im not gonna let this slide
-  renderData(busCode);
+  console.log("Data: " + data);
+
+  // TODO: make alerts and shi
+  if(!isBusRoutesResponse(data)) { console.log("You gay and broke"); return };
+
+  renderData(busCode, data);
 })
 
 // Direction thingy

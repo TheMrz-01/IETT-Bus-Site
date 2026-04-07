@@ -303,11 +303,6 @@ function filterData(
   direction: direction,
   dayType: dayType ): departureTimesInfo[] {
 
-  if(direction === null || dayType === null) {  
-    console.log("No direction or day type provided");
-    return [];
-  }
-
   const filteredData = data.filter(
     (item) => item.SYON === direction && item.SGUNTIPI === dayType,
   );
@@ -703,8 +698,6 @@ app.post(("/otobus/routes"), busRoutesLimiter, async (req: Request<{}, {}, unkno
   )];
 
   const busRoutes = toBusRouteArray(req.body);
-
-  console.log(busRoutes);
 
   if(busRoutes.length === 0){
     return res.status(400).json({error: "No bus codes provided"});
