@@ -110,6 +110,7 @@ type BusRoutesResponse = {
   ok: boolean;
   announcements: announcementInfo[];
   times: Record<string, departureTimesInfo[]>;
+  timestamp: number;
   errors: Record<string, Err["error"]>;
   summary: { total: number; success: number; failed: number };
 };
@@ -441,6 +442,7 @@ function packResult(
     ok: failed === 0,
     announcements,
     times,
+    timestamp: Date.now(),
     errors,
     summary: { total, success, failed },
   };
@@ -693,7 +695,7 @@ app.post(("/otobus/routes"), busRoutesLimiter, async (req: Request<{}, {}, unkno
   }
 
   // TODO: This shit needs to go to a func bruh
-  const busCodes: string[] = [...new Set(
+  const rawBusRoutes: string[] = [...new Set(
     req.body.busRoutes.map((c) => c.busCode.trim().toUpperCase() ).filter(Boolean)
   )];
 
@@ -707,7 +709,7 @@ app.post(("/otobus/routes"), busRoutesLimiter, async (req: Request<{}, {}, unkno
 
   try {
     const announcementTask = async () => {
-      return await getRelevantAnnouncements(busCodes);
+      return await getRelevantAnnouncements(rawBusRoutes);
     };
 
     const timesTask = async () => {

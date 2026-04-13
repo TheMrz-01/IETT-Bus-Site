@@ -50,7 +50,7 @@ type departureTimesInfo = {
   //"SGUZERAH": string;
   "SYON": string;
   "SGUNTIPI": string;
-  "GUZERGAH_ISARETI": string;
+  "GUZERGAH_ISARETI": string | null;
   //"SSERVISTIPI": string; 
   "DT": string;
 };
@@ -101,7 +101,10 @@ const remainingTime = _remainingTime;
 const announcementTexts = _announcementTexts;
 const timeTable = _timeTable;
 
-function getDatType(): dayType{
+// BULLSHIIII
+type IstanbulDatePart = "year" | "month" | "day" | "hour" | "minute" | "second";
+
+function getDayType(): dayType{
   const date = new Date();
   const day = date.getDay();
 
@@ -114,31 +117,36 @@ function getDatType(): dayType{
 // ======= REQUEST SHI ===========
 let selectedBusCode: string = ""; 
 let selectedDirection: direction = "G"; // Yeah okey just put the fleshlight into my bag lil bro
-let currentDayType: dayType = getDatType();
+let currentDayType: dayType = getDayType();
 
 function normalizeBusCode(value: string): string {
   return value.trim().toUpperCase();
 }
 
-function isBusRoute(x: any): x is busRoute{
+function isDepartureTimesInfo(x: any): x is departureTimesInfo{
   return (
     x &&
     typeof x === "object" &&
-    typeof x.busCode === "string" &&
-    (x.direction === "D" || x.direction === "G") &&
-    (x.dayType === "I" || x.dayType === "C" || x.dayType === "P") 
+    typeof x.SHATKODU === "string" &&
+    typeof x.HATADI === "string" &&
+    (x.SYON === "D" || x.SYON === "G") &&
+    (x.SGUNTIPI === "I" || x.SGUNTIPI === "C" || x.SGUNTIPI === "P")  &&
+    (typeof x.GUZERGAH_ISARETI === "string" || x.GUZERGAH_ISARETI === null ) &&
+    typeof x.DT === "string"
   );
 }
 
-function isBusRouteBody(body: unknown) {
-  return (
-    typeof body === "object" &&
-    body !== null &&
-    "busRoutes" in body &&
-    Array.isArray((body as { busRoutes?: unknown }).busRoutes) &&
-    (body as { busRoutes: unknown[] }).busRoutes.every((x) => isBusRoute(x)) &&
-    (body as { busRoutes: unknown[] }).busRoutes.length <= 5
-  );
+function isTimes(body: unknown) {
+  if (!isRecord(body)) return false;
+
+  //We do lil ai
+  for (const [key, value] of Object.entries(body)) {
+    if (typeof key !== "string") return false;
+    if (!Array.isArray(value)) return false;
+    if (!value.every(isDepartureTimesInfo)) return false;
+  }
+
+  return true;
 }
 
 // TODO: Check timestamp
@@ -150,12 +158,10 @@ function isBusRoutesResponse(value: unknown): value is BusRoutesResponse {
   if (!Array.isArray(value.announcements)) return false;
   if (!value.announcements.every(isAnnouncementInfo)) return false;
 
-  // TODO: AM I BLIND WTF IS THIS
   if (!isRecord(value.times)) return false;
-  for (const [k, v] of Object.entries(value.times)) {
-    if (typeof k !== "string") return false; 
-    if (!isBusRouteBody(v)) return false;
-  }
+  if (!isTimes(value.times)) return false;
+
+  if(typeof value.timestamp !== "number") return false;
 
   if (!isRecord(value.errors)) return false;
   for (const [k, v] of Object.entries(value.errors)) {
@@ -189,8 +195,6 @@ function isAnnouncementInfo(x: unknown): x is announcementInfo {
 
   return (
     typeof x.HATKODU === "string" &&
-    typeof x.HAT === "string" &&
-    typeof x.TIP === "string" &&
     typeof x.GUNCELLEME_SAATI === "string" &&
     typeof x.MESAJ === "string"
   );
@@ -310,6 +314,184 @@ function addBusToList(): void {
   }
 }
 
+// BULLSHIIII
+function getDatePartNumber(
+  parts: Intl.DateTimeFormatPart[],
+  partType: IstanbulDatePart,
+): number {
+  const value = parts.find((part) => part.type === partType)?.value;
+
+  if (!value) {
+    throw new Error(`Missing date part: ${partType}`);
+  }
+
+  return Number(value);
+}
+
+// BULLSHIIII
+// the minute part doesnt contain 0 for some reason?
+function getIstanbulNow(): Date {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Istanbul",
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(new Date());
+
+  return new Date(
+    getDatePartNumber(parts, "year"),
+    getDatePartNumber(parts, "month") - 1,
+    getDatePartNumber(parts, "day"),
+    getDatePartNumber(parts, "hour"),
+    getDatePartNumber(parts, "minute"),
+    getDatePartNumber(parts, "second"),
+    0,
+  );
+}
+
+// TODO: Add seconds
+function stringDepartureTime2Date(time: unknown, baseDate: Date = new Date()): Date{
+  if(typeof time !== "string") throw new Error("No");
+
+  const [hourText, minuteText] = time.split(":");
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+
+  return new Date(
+    baseDate.getFullYear(),
+    baseDate.getMonth(),
+    baseDate.getDate(),
+    hour,
+    minute,
+    0,
+    0,
+  );
+}
+
+// TODO: Add hat names also research that fuck ass edge cases observed in HM3, 500T etc.
+function renderDirection(){
+  const directionType = directionControl.querySelector(".directionType");
+
+  if(!(directionType instanceof HTMLParagraphElement)) return;
+
+  if(selectedDirection === "G")
+    directionType.textContent = "Gidiş";
+  else if(selectedDirection === "D")
+    directionType.textContent = "Dönüş";
+}
+
+// TODO: TODO TODO TODO TODO
+function renderDepartures(times: Record<string, departureTimesInfo[]>, busCode: string){
+  if(times === undefined || typeof busCode !== "string" ) return;
+
+  const closestDT = closestDepartureTimes(times[busCode]);
+  if(closestDT === undefined) { console.log("DT undefined return"); return; }
+
+  const firstRT = remainingTime.querySelector("#first");
+  if(firstRT instanceof HTMLParagraphElement) firstRT.textContent = "En Yakın Birinci Kalkış:  " + dateDepartureTime2String(
+    closestDT[0] as Date) + closestDT[2];
+
+  const secondRT = remainingTime.querySelector("#second");
+  if(secondRT instanceof HTMLParagraphElement) secondRT.textContent = "En Yakın İkinci Kalkış:  " + dateDepartureTime2String(
+    closestDT[1] as Date) + closestDT[3];
+}
+
+function renderAnnouncement(announcements: announcementInfo[], busCode: string){
+  if(!Array.isArray(announcements)) { console.log("Announcements not array"); return; }
+  if(typeof busCode !== "string") { console.log("Bus code aint a string"); return; }
+
+  const filteredAnnouncements = announcements.filter((item) => item.HATKODU === busCode);
+
+  const announcementParagraph = announcementTexts.querySelector("#announcementText");
+
+  if(!(announcementParagraph instanceof HTMLParagraphElement)) { return; }
+
+  announcementParagraph.innerHTML = "";
+
+  filteredAnnouncements.forEach(element => {
+    announcementParagraph.innerHTML += "<p>" + element.HATKODU + " (" + element.GUNCELLEME_SAATI + ")" 
+      + ": " + element.MESAJ + "<p>" + "<br>"
+  });
+}
+
+// TODO: TODO TODO TODO TODO
+function renderTimes(){
+
+}
+
+//TODO: Fix when time is not date case & minute section is fucked
+function dateDepartureTime2String(time: unknown){
+  if(!(time instanceof Date) && typeof time === "string") return time; 
+
+  if(time instanceof Date){
+    if(time.getMinutes() === 0){
+      return time.getHours().toString() + ":" + "00";
+    } else if(time.getMinutes() < 10){
+      return time.getHours().toString() + ":" + "0" + time.getMinutes().toString();
+    } else {
+      return time.getHours().toString() + ":" + time.getMinutes().toString();
+    }
+  }
+}
+
+// Returns two departure times
+function closestDepartureTimes(times: unknown){
+  if(!Array.isArray(times) || 
+    !times.every(isDepartureTimesInfo) ) { console.log("func dead"); return; }
+
+  const currentTime = getIstanbulNow();
+
+  let firstBus = undefined;
+  let secondBus = undefined;
+  let firstRouteSign: string = " ";
+  let secondRouteSign: string = " ";
+
+  for(let i = 0; i < times.length; i++){
+    const cur = stringDepartureTime2Date(times[i]?.DT);
+
+    if (cur && cur instanceof Date && cur > currentTime) {
+      firstBus = cur;
+
+      const item = times[i];
+      if (!item) continue;
+
+      if (item.GUZERGAH_ISARETI !== null) 
+        firstRouteSign = item.GUZERGAH_ISARETI;
+
+      if (i + 1 < times.length) {
+        secondBus = stringDepartureTime2Date(times[i + 1]?.DT);
+
+        const item = times[i + 1];
+        if (!item) continue;
+
+        if (item.GUZERGAH_ISARETI !== null) 
+          secondRouteSign = item.GUZERGAH_ISARETI;
+      } else {
+        secondBus = "No more departures"; 
+        secondRouteSign = " ";
+      }
+  
+      break;
+    } 
+  }
+
+  /* TODO: Note to myself dont write code after a 2 millers. Im still a baby boy and i dont got any alcohol tolerance.
+  * Maybe in the future. Fix this bullshit later
+  */
+  if (firstBus instanceof Date && secondBus instanceof Date) {
+    return [firstBus, secondBus, firstRouteSign, secondRouteSign];
+  }
+  else if(firstBus instanceof Date && typeof secondBus === "string") {
+    return [firstBus, secondBus, firstRouteSign, secondRouteSign];
+  }
+  else if(firstBus === undefined && secondBus === undefined)
+    return ["No more departures","No more departures", firstRouteSign, secondRouteSign];
+}
+
 function removeBus(): void {
   busList.querySelectorAll("li").forEach((element) => { if(element.id == selectedBusCode) element.remove(); })
   selectedBusCode = "";
@@ -321,33 +503,25 @@ function removeBus(): void {
 }
 
 function renderData(busCode: string, responseBusRoutes?: BusRoutesResponse) {
-  console.log("ALLAH");
-
   if(!dataPanel) { console.log("Where panel??"); return; }
-
-  console.log("PANEL KING");
 
   // TODO: Need a big ass rewrite
   showDataPanelContent();
   // I Dont give a FUCK about type safety
   // TODO: Uuum render?
 
-  console.log("SHOW KING");
+  renderDirection();
 
-  if(!isBusRouteBody(responseBusRoutes)) return;
+  console.log(isBusRoutesResponse(responseBusRoutes));
+  if(!isBusRoutesResponse(responseBusRoutes)) return;
 
-  console.log("BUS ROUTE BODY KING");
+  const times = responseBusRoutes.times;
+  if(times === undefined) { console.log("FUcking dead"); return; }
+  renderDepartures(times, busCode)
 
-  // TODO: Add announcements
-  const times = responseBusRoutes?.times[Number(busCode)];
-
-  console.log("TIMES KING");
-
-  const firstRT = remainingTime.querySelectorAll("#first");
-  if(firstRT instanceof HTMLParagraphElement) firstRT.textContent = "FIRST ";
-
-  const secondRT = remainingTime.querySelectorAll("#second");
-  if(secondRT instanceof HTMLParagraphElement) secondRT.textContent = "FRC ";
+  const announcements = responseBusRoutes.announcements;
+  if(announcements === undefined || announcements === null) { console.log("Announcements ded"); return; }
+  renderAnnouncement(announcements ,busCode);
 }
 
 function isResponse(response: unknown): boolean{
@@ -390,7 +564,7 @@ function packageRequest(){
   })
 }
 
-async function fetchSingularData(){
+async function fetchSingularData(): Promise<BusRoutesResponse | undefined>{
   const requestBody = packageSingularRequest();
 
   console.log(requestBody);
@@ -411,11 +585,11 @@ async function fetchSingularData(){
 
   const data: unknown = await response.json();
 
-  console.log("Unkown data: " + data);
-  
-  if(!isBusRoutesResponse(data)) { console.log("What the fuck is this"); return []; }
+  if(isBusRoutesResponse(data)) { return data; }
 
-  return data;
+  return;
+  
+  // TODO: Need to check that return type
 }
 
 async function fetchListData() {
@@ -467,7 +641,7 @@ function changeDirection(){
 // Run on DOM Load
 window.addEventListener("DOMContentLoaded", async () => {
   loadStorage();
-  fetchListData();
+  //fetchListData();
   showDataPanelEmpty();
   // TODO: i donno
 });
@@ -518,18 +692,15 @@ busList.addEventListener("click", async (event) => {
 
   const data = await fetchSingularData();
 
-  console.log("Data: " + data);
-
-  // TODO: make alerts and shi
-  if(!isBusRoutesResponse(data)) { console.log("You gay and broke"); return };
-
   renderData(busCode, data);
 })
 
 // Direction thingy
-directionBtn.addEventListener("click", (event) => {
+directionBtn.addEventListener("click", async (event) => {
   changeDirection();
-  fetchSingularData();
+  
+  const data = await fetchSingularData();
+  renderData(selectedBusCode, data)
 });
 
 // === [DEBUG] ===

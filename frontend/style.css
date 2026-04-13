@@ -384,6 +384,11 @@ h2 {
     font-size: clamp(1.15rem, 1vw + 0.9rem, 1.7rem);
 }
 
+.directionType {
+    margin: 0;
+    font-size: clamp(1.15rem, 1vw + 0.9rem, 1.7rem);
+}
+
 .directionControl {
     display: flex;
     align-items: center;
